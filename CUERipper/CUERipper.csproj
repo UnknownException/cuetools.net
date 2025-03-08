@@ -181,7 +181,7 @@
       <Name>CUETools.Ripper</Name>
     </ProjectReference>
     <ProjectReference Include="..\Freedb\Freedb.csproj">
-      <Project>{4d42a992-952b-41f0-a594-c98359865b0a}</Project> 
+      <Project>{4d42a992-952b-41f0-a594-c98359865b0a}</Project>
       <Name>Freedb</Name>
     </ProjectReference>
     <ProjectReference Include="..\ProgressODoom\ProgressODoom.csproj">
