@@ -19,14 +19,16 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using CUERipper.Avalonia.Extensions;
+using CUERipper.Avalonia.Views.Abstractions;
 using CUETools.Processor;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia;
 
-public partial class RepairSelectionDialog : Window
+public partial class RepairSelectionDialog : Window, ICUEDialog<CUEToolsSourceFile[], int>
 {
     public required CUEToolsSourceFile[] SourceFiles { get; init; }
     public int Selection { get; set; } = -1;
@@ -78,7 +80,7 @@ public partial class RepairSelectionDialog : Window
         Close();
     }
 
-    public static async Task<int> CreateAsync(Window owner, CUEToolsSourceFile[] sourceFiles)
+    public static async Task<int> CreateAsync(Window owner, IServiceProvider serviceProvider, CUEToolsSourceFile[] sourceFiles)
     {
         var repairSelectionWindow = new RepairSelectionDialog()
         {

@@ -21,12 +21,13 @@ using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
-using CUERipper.Avalonia.Compatibility;
 using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.Utilities;
 using CUERipper.Avalonia.ViewModels.UserControls;
+using CUERipper.Avalonia.Views.UserControls.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using System.Linq;
@@ -35,7 +36,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Views.UserControls;
 
-public sealed partial class CoverViewer : UserControl, IDisposable
+public sealed partial class CoverViewer : UserControl, ICUEUserControl, IDisposable
 {
     public CoverViewerViewModel ViewModel => DataContext as CoverViewerViewModel
         ?? throw new ViewModelMismatchException(typeof(CoverViewerViewModel), DataContext?.GetType());
@@ -48,13 +49,13 @@ public sealed partial class CoverViewer : UserControl, IDisposable
     public CoverViewer()
     {
         InitializeComponent();
-
-        DataContext = new CoverViewerViewModel();
     }
 
-    public void Init(ICUEMetaService metaService)
+    public void Init(IServiceProvider serviceProvider)
     {
-        _metaService = metaService;
+        _metaService = serviceProvider.GetService<ICUEMetaService>();
+
+        DataContext = new CoverViewerViewModel();
 
         PlaceholderCover = GetPlaceholderAlbumCover();
         ViewModel.CurrentCover = PlaceholderCover;

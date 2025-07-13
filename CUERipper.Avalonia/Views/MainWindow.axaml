@@ -71,38 +71,10 @@
 					
 			<TabControl Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
 				<TabItem Header="{Binding HeaderTracks}" FontSize="20">
-					<DataGrid Name="gridTrackList"
-						AutoGenerateColumns="False"
-						CanUserResizeColumns="True"
-						SelectionMode="Single"
-						HeadersVisibility="Column"
-						CanUserSortColumns="False"
-						ItemsSource="{Binding Tracks}">
-						<DataGrid.Columns>
-							<DataGridTextColumn Header="#" Binding="{Binding TrackNo}" Width="Auto" IsReadOnly="True"/>
-							<DataGridTextColumn Header="{Binding HeaderTitle}" Binding="{Binding Title}" Width="Auto"/>
-							<DataGridTextColumn Header="{Binding HeaderLength}" Binding="{Binding Length}" Width="Auto" IsReadOnly="True"/>
-							<DataGridTemplateColumn Header="{Binding HeaderProgress}">
-								<DataGridTemplateColumn.CellTemplate>
-									<DataTemplate>
-										<ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}" ShowProgressText="True" Height="18" Width ="80"/>
-									</DataTemplate>
-								</DataGridTemplateColumn.CellTemplate>
-							</DataGridTemplateColumn>
-							<DataGridTextColumn Header="{Binding HeaderArtist}" Binding="{Binding Artist}" Width="Auto"/>
-						</DataGrid.Columns>
-					</DataGrid>
+					<uc:TrackGrid Name="trackGrid" />
 				</TabItem>
 				<TabItem Header="{Binding HeaderMetadata}" FontSize="20">
-					<DataGrid Name="gridMetadata" 
-							AutoGenerateColumns="False" 
-							HeadersVisibility="None"
-							ItemsSource="{Binding Metadata}">
-						<DataGrid.Columns>
-							<DataGridTextColumn Header="Field" Binding="{Binding Field}" IsReadOnly="True" />
-							<DataGridTextColumn Header="Value" Binding="{Binding Value}" />
-						</DataGrid.Columns>
-					</DataGrid>
+					<uc:MetaGrid Name="metaGrid" />
 				</TabItem>
 				<TabItem Header="Cover Art" FontSize="20">
 					<uc:CoverViewer Name="coverViewer" />

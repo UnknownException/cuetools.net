@@ -22,6 +22,7 @@ using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Utilities;
 using CUERipper.Avalonia.ViewModels;
 using CUERipper.Avalonia.ViewModels.Bindings.OptionProxies;
+using CUERipper.Avalonia.Views.Abstractions;
 using CUETools.Codecs;
 using System;
 using System.Collections.Generic;
@@ -33,7 +34,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia;
 
-public partial class EncoderOptionsDialog : Window
+public partial class EncoderOptionsDialog : Window, ICUEDialog<IAudioEncoderSettings>
 {
     public EncoderOptionsDialogViewModel ViewModel => DataContext as EncoderOptionsDialogViewModel
         ?? throw new ViewModelMismatchException(typeof(EncoderOptionsDialogViewModel), DataContext?.GetType());
@@ -107,7 +108,7 @@ public partial class EncoderOptionsDialog : Window
         public MethodInfo? SetMethod { get; set; }
     }
 
-    public static async Task CreateAsync(Window owner, IAudioEncoderSettings encoderSettings)
+    public static async Task CreateAsync(Window owner, IServiceProvider serviceProvider, IAudioEncoderSettings encoderSettings)
     {
         var encodingSettingsWindow = new EncoderOptionsDialog()
         {

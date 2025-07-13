@@ -1,4 +1,4 @@
-﻿#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2025 Max Visser
 /*
     Copyright (C) 2025 Max Visser
 
@@ -16,17 +16,12 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using System;
 
-namespace CUERipper.Avalonia.Events
+namespace CUERipper.Avalonia.Models
 {
-    public class GenericProgressEventArgs : EventArgs
+    public enum MetaGridColumnKey
     {
-        public float Progress { get; set; }
-
-        public GenericProgressEventArgs(float progress)
-        {
-            Progress = progress;
-        }
+        Field
+        , Value
     }
 }

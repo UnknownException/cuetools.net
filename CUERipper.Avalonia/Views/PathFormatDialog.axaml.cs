@@ -23,6 +23,8 @@ using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels;
+using CUERipper.Avalonia.Views.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -30,7 +32,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia;
 
-public partial class PathFormatDialog : Window
+public partial class PathFormatDialog : Window, ICUEDialog<AlbumMetadata?>
 {
     public PathFormatDialogViewModel ViewModel => DataContext as PathFormatDialogViewModel
         ?? throw new ViewModelMismatchException(typeof(PathFormatDialogViewModel), DataContext?.GetType());
@@ -92,8 +94,11 @@ public partial class PathFormatDialog : Window
         Close();
     }
 
-    public static async Task CreateAsync(Window owner, AlbumMetadata? meta, ICUEConfigFacade config, IIconService iconService)
+    public static async Task CreateAsync(Window owner, IServiceProvider serviceProvider, AlbumMetadata? meta)
     {
+        var config = serviceProvider.GetRequiredService<ICUEConfigFacade>();
+        var iconService = serviceProvider.GetRequiredService<IIconService>();
+        
         var pathFormatWindow = new PathFormatDialog()
         {
             Owner = owner

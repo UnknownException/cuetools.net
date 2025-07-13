@@ -21,17 +21,20 @@ using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels.UserControls;
+using CUERipper.Avalonia.Views.UserControls.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 using System;
 using System.Linq;
 
 namespace CUERipper.Avalonia.Views.UserControls;
 
-public partial class EncodingSection : UserControl
+public partial class EncodingSection : UserControl, ICUEUserControl
 {
     public EncodingSectionViewModel ViewModel => DataContext as EncodingSectionViewModel
         ?? throw new ViewModelMismatchException(typeof(EncodingSectionViewModel), DataContext?.GetType());
 
+    private IServiceProvider? _serviceProvider;
     private ICUEConfigFacade? _config;
     private IIconService? _iconService;
     public EncodingSection()
@@ -39,14 +42,15 @@ public partial class EncodingSection : UserControl
         InitializeComponent();
     }
 
-    public void Init(ICUEConfigFacade config
-        , IStringLocalizer<Language> localizer
-        , IIconService iconService)
+    public void Init(IServiceProvider serviceProvider)
     {
-        _config = config;
-        _iconService = iconService;
+        _serviceProvider = serviceProvider;
+        _config = serviceProvider.GetRequiredService<ICUEConfigFacade>();
+        _iconService = serviceProvider.GetRequiredService<IIconService>();
 
-        var viewModel = new EncodingSectionViewModel(config, localizer);
+        var localizer = serviceProvider.GetRequiredService<IStringLocalizer<Language>>();
+
+        var viewModel = new EncodingSectionViewModel(_config, localizer);
         viewModel.SetInitState();
         DataContext = viewModel;
         
@@ -74,6 +78,7 @@ public partial class EncodingSection : UserControl
 
             await EncoderOptionsDialog.CreateAsync(
                 parent as Window ?? throw new UnexpectedParentException(typeof(Window), parent?.GetType())
+                , _serviceProvider ?? throw new NotInitializedException(nameof(_serviceProvider))
                 , encoderSettings
             );
         }
@@ -85,7 +90,7 @@ public partial class EncodingSection : UserControl
 
         await OptionsDialog.CreateAsync(
             parent as Window ?? throw new UnexpectedParentException(typeof(Window), parent?.GetType())
-            , _config ?? throw new NotInitializedException(nameof(_config))
+            , _serviceProvider ?? throw new NotInitializedException(nameof(_serviceProvider))
         );
     }
 }

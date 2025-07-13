@@ -41,6 +41,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -51,12 +52,11 @@ namespace CUERipper.Avalonia.Views
         public MainWindowViewModel ViewModel => DataContext as MainWindowViewModel
             ?? throw new ViewModelMismatchException(typeof(MainWindowViewModel), DataContext?.GetType());
 
+        private readonly IServiceProvider _serviceProvider;
         private readonly ICUERipperService _ripperService;
         private readonly ICUEMetaService _metaService;
-        private readonly IDriveNotificationService _driveNotificationService;
         private readonly ICUEConfigFacade _config;
         private readonly IStringLocalizer<Language> _localizer;
-        private readonly IIconService _iconService;
         private readonly IUpdateService _updateService;
         private readonly ILogger _logger;
 
@@ -93,7 +93,8 @@ namespace CUERipper.Avalonia.Views
 #pragma warning restore 8618
 #endif
 
-        public MainWindow(ICUERipperService ripperService
+        public MainWindow(IServiceProvider serviceProvider
+            , ICUERipperService ripperService
             , ICUEMetaService metaService
             , IDriveNotificationService driveNotificationService
             , ICUEConfigFacade config
@@ -102,12 +103,11 @@ namespace CUERipper.Avalonia.Views
             , IUpdateService updateService
             , ILogger<MainWindow> logger)
         {
+            _serviceProvider = serviceProvider;
             _ripperService = ripperService;
             _metaService = metaService;
-            _driveNotificationService = driveNotificationService;
             _config = config;
             _localizer = localizer;
-            _iconService = iconService;
             _updateService = updateService;
             _logger = logger;
 
@@ -115,10 +115,12 @@ namespace CUERipper.Avalonia.Views
             DataContextChanged += OnDataContextChanged;
             Closing += OnWindowClosing;
 
-            driveSettingSection.Init(config, ripperService, localizer, iconService);
-            coverViewer.Init(metaService);
+            driveSettingSection.Init(serviceProvider);
+            coverViewer.Init(serviceProvider);
+            trackGrid.Init(serviceProvider);
+            metaGrid.Init(serviceProvider);
 
-            Image BindImage(AppIcon icon) => new() { Source = _iconService.GetIcon(icon), Width = 18, Height = 18 };
+            Image BindImage(AppIcon icon) => new() { Source = iconService.GetIcon(icon), Width = 18, Height = 18 };
 
             buttonRefreshDrives.Click += OnRefreshDrivesClicked;
             buttonRefreshDrives.Content = BindImage(AppIcon.Disc);
@@ -140,8 +142,9 @@ namespace CUERipper.Avalonia.Views
 
             tabControlEncoding.SelectionChanged += OnEncodingTabChanged;
             coverViewer.ViewModel.PropertyChanged += OnCoverViewerPropertyChanged;
+            metaGrid.ViewModel.PropertyChanged += OnMetaGridPropertyChanged;
 
-            _driveNotificationService.SetCallbacks(OnDriveListRefreshRequestedCallback
+            driveNotificationService.SetCallbacks(OnDriveListRefreshRequestedCallback
                 , OnDriveUnmountedCallback
                 , OnDriveMountedCallback);
 
@@ -154,7 +157,7 @@ namespace CUERipper.Avalonia.Views
                 => Dispatcher.UIThread.Post(async () => { 
                     // Prevent double initializing and only re-initialize when a new drive has been selected
                     if (e.PreviousDrive != Constants.NullDrive && e.PreviousDrive != e.NextDrive) { 
-                        await InitializeApplicationAsync(); 
+                        await InitializeApplicationAsync();
                     }
                 });
 
@@ -166,6 +169,8 @@ namespace CUERipper.Avalonia.Views
             InitializeEncodingTab();
 
             coverViewer.Clear();
+            trackGrid.Clear();
+            metaGrid.Clear();
 
             ViewModel.SetInitState(coverViewer.ViewModel.CurrentCover);
 
@@ -175,7 +180,7 @@ namespace CUERipper.Avalonia.Views
 
                 SetUI(UIMode.Ready);
 
-                if (_config.AutomaticRip && ViewModel.GetSelectedAlbumMeta() != null)
+                if (_config.AutomaticRip && _metaService.SelectedMetadata != null)
                 {
                     await StartRippingAsync();
                 }
@@ -232,8 +237,7 @@ namespace CUERipper.Avalonia.Views
                 _rippingCts = new();
             }
 
-            var metadata = ViewModel.GetSelectedAlbumMeta();
-            if(metadata != null) _metaService.FinalizeMetadata(metadata);
+            _metaService.FinalizeMetadata();
 
             lblStatus.Text = _localizer["Status:DownloadingAlbumCover"];
             var albumCoverUri = await coverViewer.GetCurrentCoverAsync(_rippingCts.Token);
@@ -278,16 +282,14 @@ namespace CUERipper.Avalonia.Views
 
         private async void OnPathFormatClicked(object? sender, EventArgs e)
         {
-            var meta = ViewModel.GetSelectedAlbumMeta();
-
-            await PathFormatDialog.CreateAsync(this, meta, _config, _iconService);
-
+            var meta = _metaService.SelectedMetadata;
+            await PathFormatDialog.CreateAsync(this, _serviceProvider, meta);
             ViewModel.OutputPath = meta.PathStringFromFormat(_config.PathFormat, _config) ?? string.Empty;
         }
 
         private async void OnUpdateClicked(object? sender, EventArgs e)
         {            
-            await UpdateDialog.CreateAsync(this, _updateService, _localizer);
+            await UpdateDialog.CreateAsync(this, _serviceProvider);
         }
 
         private void SetUI(UIMode uiMode)
@@ -312,8 +314,9 @@ namespace CUERipper.Avalonia.Views
 
             driveSettingSection.IsEnabled = uiMode != UIMode.Ripping && uiMode != UIMode.Init;
 
-            GetContentGridControls()
-                .ForEach(c => c.IsReadOnly = uiMode == UIMode.Ripping || uiMode == UIMode.Init);
+
+            trackGrid.SetReadOnly(uiMode == UIMode.Ripping || uiMode == UIMode.Init);
+            metaGrid.SetReadOnly(uiMode == UIMode.Ripping || uiMode == UIMode.Init);
 
             // BUG causes flickering on tab header when moving mouse over images
             // coverViewer.IsEnabled = uiMode != UIMode.Ripping;
@@ -338,7 +341,7 @@ namespace CUERipper.Avalonia.Views
                 // TODO figure out how to NOT do it like this
                 // https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md#avoid-using-taskresult-and-taskwait
                 var result = Task.Run(() => Dispatcher.UIThread.InvokeAsync(
-                    () => RepairSelectionDialog.CreateAsync(this, sourceFiles)
+                    () => RepairSelectionDialog.CreateAsync(this, _serviceProvider, sourceFiles)
                 )).GetAwaiter().GetResult();
 
                 args.selection = result;
@@ -396,10 +399,10 @@ namespace CUERipper.Avalonia.Views
                     viewModel.ErrorProgress = MathClamp.Clamp((int)errorPercentage, 0, 100);
                     viewModel.TotalProgress = (int)Math.Round((MathClamp.Clamp(currentProgress, 0, audioLength) / audioLength * 100));
 
-                    for (int i = 0; i < audioTrackCount && i < viewModel.Tracks.Count; ++i)
+                    for (int i = 0; i < audioTrackCount && i < trackGrid.ViewModel.Tracks.Count; ++i)
                     {
                         var progressFraction = Math.Min(currentProgress / trackLength[i], 1f);
-                        viewModel.Tracks[i].Progress = Convert.ToInt32(Math.Round(progressFraction * 100f));
+                        trackGrid.ViewModel.Tracks[i].Progress = Convert.ToInt32(Math.Round(progressFraction * 100f));
 
                         if (trackLength[i] >= currentProgress) break;
                         else currentProgress -= trackLength[i];
@@ -416,7 +419,8 @@ namespace CUERipper.Avalonia.Views
 
                 if (!string.IsNullOrWhiteSpace(e.PopupContent))
                 {
-                    await MessageBox.CreateDialogAsync(e.Status, e.PopupContent, this, _localizer);
+                    var messageBox = new MessageBoxDefinition(e.Status, e.PopupContent, MessageBoxType.Ok);
+                    await MessageBox.CreateAsync(this, _serviceProvider, messageBox);
                 }
 
                 SetUI(UIMode.Done);
@@ -428,11 +432,15 @@ namespace CUERipper.Avalonia.Views
             // TODO figure out how to NOT do it like this
             // https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md#avoid-using-taskresult-and-taskwait            
             var result = Task.Run(() => Dispatcher.UIThread.InvokeAsync(
-                () => MessageBox.CreateDialogAsync(title: _localizer["Warning:DirectoryExists"]
-                    , message: _localizer["Warning:QuestionOverwriteDestination"]
-                    , owner: this
-                    , _localizer
-                    , MessageBox.MessageBoxType.YesNo)
+                () =>
+                {
+                    var messageBox = new MessageBoxDefinition(_localizer["Warning:DirectoryExists"]
+                        , _localizer["Warning:QuestionOverwriteDestination"]
+                        , MessageBoxType.YesNo
+                    );
+
+                    return MessageBox.CreateAsync(this, _serviceProvider, messageBox);
+                }
             )).GetAwaiter().GetResult();
 
             e.CanModifyContent = result;
@@ -510,7 +518,7 @@ namespace CUERipper.Avalonia.Views
         private TabItem CreateEncodingTabItem(EncodingConfiguration? encodingConfig)
         {
             var control = new EncodingSection();
-            control.Init(_config, _localizer, _iconService);
+            control.Init(_serviceProvider);
 
             if (encodingConfig != null)
             {
@@ -611,12 +619,12 @@ namespace CUERipper.Avalonia.Views
             {
                 e.Cancel = true;
 
-                var result = await MessageBox.CreateDialogAsync(title: _localizer["Warning:CantClose"]
-                    , message: _localizer["Warning:RipInProgress"]
-                    , owner: this
-                    , _localizer
-                    , MessageBox.MessageBoxType.YesNo);
+                var messageBox = new MessageBoxDefinition(_localizer["Warning:CantClose"]
+                    , _localizer["Warning:RipInProgress"]
+                    , MessageBoxType.YesNo
+                );
 
+                var result = await MessageBox.CreateAsync(this, _serviceProvider, messageBox);
                 if (result)
                 {
                     _rippingCts.Cancel();
@@ -642,6 +650,26 @@ namespace CUERipper.Avalonia.Views
             }
         }
 
+        private void OnMetaGridPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(MetaGrid.ViewModel.AlbumArtist):
+                    ViewModel.AlbumArtist = metaGrid.ViewModel.AlbumArtist;
+                    break;
+                case nameof(MetaGrid.ViewModel.AlbumTitle):
+                    ViewModel.AlbumTitle = metaGrid.ViewModel.AlbumTitle;
+                    break;
+                case nameof(MetaGrid.ViewModel.AlbumYear):
+                    ViewModel.AlbumYear = metaGrid.ViewModel.AlbumYear;
+                    break;
+                case nameof(MetaGrid.ViewModel.AlbumDisc):
+                    ViewModel.AlbumDisc = metaGrid.ViewModel.AlbumDisc;
+                    break;
+
+            }
+        }
+
         private List<InputElement> GetDiscDriveControls()
             => [
                 comboBoxDiscDrives
@@ -656,12 +684,6 @@ namespace CUERipper.Avalonia.Views
                 , comboBoxAlbumReleasesSidePane
                 , buttonAdvancedSearch
                 , buttonResetSearch
-            ];
-
-        private List<DataGrid> GetContentGridControls()
-            => [
-                gridTrackList
-                , gridMetadata
             ];
 
         private bool _disposed;

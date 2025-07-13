@@ -19,6 +19,7 @@
 using Avalonia.Media.Imaging;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Events;
+using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
@@ -48,7 +49,20 @@ namespace CUERipper.Avalonia.Services
         private readonly Dictionary<string, IImmutableList<AlbumMetadata>> _cache = [];
 
         private CDImageLayout _toc = new();
-        private string _arName = string.Empty;
+
+        private AlbumMetadata? _selectedMetadata;
+        public AlbumMetadata? SelectedMetadata
+        {
+            get => _selectedMetadata;
+            set
+            {
+                _selectedMetadata = value;
+
+                var eventArgs = new SelectedMetadataChangedEventArgs(value);
+                OnSelectedMetadataChanged?.Invoke(this, eventArgs);
+            }
+        }
+        public event EventHandler<SelectedMetadataChangedEventArgs>? OnSelectedMetadataChanged;
 
         public CUEMetaService(ICUERipperService ripperService
             , ICUEConfigFacade cueConfig
@@ -61,14 +75,8 @@ namespace CUERipper.Avalonia.Services
 
             ripperService.OnSelectedDriveChanged += (object? _, DriveChangedEventArgs e) =>
             {
-                SetContentInfo(ripperService.GetDiscTOC(), ripperService.GetDriveARName());
+                _toc = ripperService.GetDiscTOC() ?? new();
             };
-        }
-
-        public void SetContentInfo(CDImageLayout? TOC, string ARName)
-        {
-            _toc = TOC ?? new();
-            _arName = ARName;
         }
 
         private static CUEMetadataEntry CreateDummy(CDImageLayout toc)
@@ -210,7 +218,7 @@ namespace CUERipper.Avalonia.Services
             }
         }
 
-        public void FinalizeMetadata(AlbumMetadata metadata)
-            => metadata.Data.Save();
+        public void FinalizeMetadata()
+            => SelectedMetadata?.Data.Save();
     }
 }

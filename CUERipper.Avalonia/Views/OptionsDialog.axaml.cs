@@ -23,15 +23,17 @@ using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.ViewModels;
 using CUERipper.Avalonia.ViewModels.Bindings.OptionProxies;
 using CUERipper.Avalonia.ViewModels.Bindings.OptionProxies.Abstractions;
+using CUERipper.Avalonia.Views.Abstractions;
 using CUETools.CTDB;
 using CUETools.Processor;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia;
 
-public partial class OptionsDialog : Window
+public partial class OptionsDialog : Window, ICUEDialog
 {
     public OptionsDialogViewModel ViewModel => DataContext as OptionsDialogViewModel
         ?? throw new ViewModelMismatchException(typeof(OptionsDialogViewModel), DataContext?.GetType());
@@ -111,12 +113,12 @@ public partial class OptionsDialog : Window
         }.MoveAll(ViewModel.VariousOptions);
     }
 
-    public static async Task CreateAsync(Window owner, ICUEConfigFacade config)
+    public static async Task CreateAsync(Window owner, IServiceProvider serviceProvider)
     {
         var optionsWindow = new OptionsDialog()
         {
             Owner = owner
-            , Config = config
+            , Config = serviceProvider.GetRequiredService<ICUEConfigFacade>()
             , DataContext = new OptionsDialogViewModel()
         };
 

@@ -17,8 +17,9 @@
 */
 #endregion
 using Avalonia.Media.Imaging;
+using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Models;
-using CUETools.CDImage;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
@@ -28,14 +29,19 @@ namespace CUERipper.Avalonia.Services.Abstractions
 {
     public interface ICUEMetaService
     {
-        void SetContentInfo(CDImageLayout TOC, string ARName);
+        AlbumMetadata? SelectedMetadata { get; set; }
 
+        /// <summary>
+        /// Fired from UI thread
+        /// </summary>
+        public event EventHandler<SelectedMetadataChangedEventArgs>? OnSelectedMetadataChanged;
+        
         IImmutableList<AlbumMetadata> GetAlbumMetaInformation(bool advancedSearch);
         void ResetAlbumMetaInformation();
 
         IEnumerable<string> GetTracksLength();
 
         Task<Bitmap?> FetchImageAsync(string uri, CancellationToken ct);
-        void FinalizeMetadata(AlbumMetadata metadata);
+        void FinalizeMetadata();
     }
 }

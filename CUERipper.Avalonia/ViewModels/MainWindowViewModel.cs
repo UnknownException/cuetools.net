@@ -24,6 +24,7 @@ using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels.Bindings;
 using Microsoft.Extensions.Localization;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -31,9 +32,6 @@ namespace CUERipper.Avalonia.ViewModels
 {
     public partial class MainWindowViewModel : ViewModelBase
     {
-        public ObservableCollection<TrackModel> Tracks { get; set; } = [];
-        public ObservableCollection<EditableFieldProxy> Metadata { get; } = [];
-
         public ObservableCollection<string> DiscDrives { get; set; } = [];
 
         [ObservableProperty]
@@ -59,13 +57,12 @@ namespace CUERipper.Avalonia.ViewModels
         partial void OnSelectedAlbumChanged(AlbumRelease? oldValue, AlbumRelease? newValue)
         {
             if (string.IsNullOrWhiteSpace(newValue?.Name)) return;
-            if (string.Compare(oldValue?.Name, newValue!.Name) == 0) return;
+            if (oldValue == newValue) return;
 
-            RefreshTrackList();
-            RefreshMetadata();
+            var meta = GetSelectedAlbumMeta();
+            _metaService.SelectedMetadata = meta;
 
-            OutputPath = GetSelectedAlbumMeta()?.PathStringFromFormat(_config.PathFormat, _config)
-                ?? "Output Path";
+            OutputPath = meta?.PathStringFromFormat(_config.PathFormat, _config) ?? "Output Path";
         }
 
         [ObservableProperty]
@@ -104,10 +101,6 @@ namespace CUERipper.Avalonia.ViewModels
 
         public string HeaderTracks { get => _localizer["Main:Tracks"]; }
         public string HeaderMetadata { get => _localizer["Main:Metadata"]; }
-        public string HeaderTitle { get => _localizer["TrackList:Title"]; }
-        public string HeaderLength { get => _localizer["TrackList:Length"]; }
-        public string HeaderProgress { get => _localizer["TrackList:Progress"]; }
-        public string HeaderArtist { get => _localizer["TrackList:Artist"]; }
 
         private readonly ICUEConfigFacade _config;
         private readonly ICUERipperService _ripperService;
@@ -133,7 +126,7 @@ namespace CUERipper.Avalonia.ViewModels
 
             var metaInfo = _metaService.GetAlbumMetaInformation(false);
             new ObservableCollection<AlbumRelease>(
-                metaInfo.Select(meta =>
+                metaInfo.Select((meta, index) =>
                 {
                     const string YEAR_SEPERATOR = ": ";
 
@@ -151,114 +144,32 @@ namespace CUERipper.Avalonia.ViewModels
                         && string.IsNullOrWhiteSpace(releaseDate))
                     {
                         return new AlbumRelease($"{(string.IsNullOrWhiteSpace(year) ? string.Empty : year + YEAR_SEPERATOR)}{artist} - {title}"
-                            , Icon: _iconService.GetIcon(meta.Source));
+                            , Icon: _iconService.GetIcon(meta.Source)
+                            , Index: index);
                     }
 
-                    return new AlbumRelease($"{(string.IsNullOrWhiteSpace(year) ? string.Empty : year + YEAR_SEPERATOR)}{artist} - {title} ({country} - {labelName} {barcode} - {releaseDate})"
-                        , Icon: _iconService.GetIcon(meta.Source));
+                return new AlbumRelease($"{(string.IsNullOrWhiteSpace(year) ? string.Empty : year + YEAR_SEPERATOR)}{artist} - {title} ({country} - {labelName} {barcode} - {releaseDate})"
+                    , Icon: _iconService.GetIcon(meta.Source)
+                    , Index: index);
                 })
             ).MoveAll(AlbumReleases);
 
             SelectedAlbum = AlbumReleases.Any() ? AlbumReleases[0] : null;
         }
 
-        public void RefreshTrackList()
-        {
-            Tracks.Clear();
-
-            if (!CDDriveAvailable) return;
-
-            var tracksLength = _metaService.GetTracksLength();
-
-            var meta = GetSelectedAlbumMeta();
-            if (meta == null) return;
-
-            meta.Data.Title = string.IsNullOrWhiteSpace(meta.Data.Title) ? Constants.UnknownTitle : meta.Data.Title;
-            meta.Data.Artist = string.IsNullOrWhiteSpace(meta.Data.Artist) ? Constants.UnknownArtist : meta.Data.Artist;
-
-            AlbumTitle = meta.Data.Title;
-            AlbumArtist = meta.Data.Artist;
-            AlbumYear = meta.Data.Year;
-            AlbumDisc = $"{_localizer["Main:Disc"]} {meta.Data.DiscNumber ?? "1"} {_localizer["Main:DiscSeperator"]} {meta.Data.TotalDiscs ?? "1"}";
-
-            for (int i = 0; i < meta.Data.Tracks.Count; ++i)
-            {
-                var trackInfo = meta.Data.Tracks[i];
-                Tracks.Add(new TrackModel
-                {
-                    Title = trackInfo?.Title ?? $"{Constants.UnknownTrack} {i+1}"
-                    , TrackNo = i + 1
-                    , Artist = trackInfo?.Artist ?? meta.Data.Artist
-                    , Length = tracksLength.ElementAtOrDefault(i) ?? Constants.TrackNullLength
-                    , OnUpdate = (TrackModel model) => {
-                        meta.Data.Tracks[model.TrackNo - 1].Title = model.Title;
-                        meta.Data.Tracks[model.TrackNo - 1].Artist = model.Artist;
-                    }
-                });
-            }
-        }
-
-        private void RefreshMetadata()
-        {
-            Metadata.Clear();
-
-            var meta = GetSelectedAlbumMeta();
-            if (meta == null) return;
-                
-            new ObservableCollection<EditableFieldProxy> {
-                new (_localizer["Meta:Artist"], () => meta.Data.Artist, x => { 
-                    meta.Data.Artist = x; 
-                    AlbumArtist = x; 
-                })
-                , new (_localizer["Meta:Title"], () => meta.Data.Title, x => {
-                    meta.Data.Title = x; 
-                    AlbumTitle = x; 
-                })
-                , new (_localizer["Meta:Genre"], () => meta.Data.Genre, x => meta.Data.Genre = x)
-                , new (_localizer["Meta:Year"], () => meta.Data.Year, x => {
-                    meta.Data.Year = x;
-                    AlbumYear = x;
-                })
-                , new (_localizer["Meta:CurrentDisc"], () => meta.Data.DiscNumber, x => { 
-                    meta.Data.DiscNumber = x; 
-                    AlbumDisc = $"{_localizer["Main:Disc"]} {meta.Data.DiscNumber ?? "1"}/{meta.Data.TotalDiscs ?? "1"}"; 
-                })
-                , new (_localizer["Meta:TotalDiscs"], () => meta.Data.TotalDiscs, x => {
-                    meta.Data.TotalDiscs = x;
-                    AlbumDisc = $"{_localizer["Main:Disc"]} {meta.Data.DiscNumber ?? "1"}/{meta.Data.TotalDiscs ?? "1"}";
-                })
-                , new (_localizer["Meta:DiscName"], () => meta.Data.DiscName, x => meta.Data.DiscName = x)
-                , new (_localizer["Meta:Label"], () => meta.Data.Label, x => meta.Data.Label = x)
-                , new (_localizer["Meta:LabelNo"], () => meta.Data.LabelNo, x => meta.Data.LabelNo = x)
-                , new (_localizer["Meta:ReleaseDate"], () => meta.Data.ReleaseDate, x => meta.Data.ReleaseDate = x)
-                , new (_localizer["Meta:Barcode"], () => meta.Data.Barcode, x => meta.Data.Barcode = x)
-                , new (_localizer["Meta:Country"], () => meta.Data.Country, x => meta.Data.Country = x)
-                , new (_localizer["Meta:Comment"], () => meta.Data.Comment, x => meta.Data.Comment = x)
-            }.MoveAll(Metadata);
-        }
-
-        public AlbumMetadata? GetSelectedAlbumMeta()
+        private AlbumMetadata? GetSelectedAlbumMeta()
         {
             if (!CDDriveAvailable || SelectedAlbum == null) return null;
 
-            var index = AlbumReleases.IndexOf(SelectedAlbum);
-            if (index == -1) index = 0;
-
+            var index = Math.Min(Math.Max(0, SelectedAlbum.Index), AlbumReleases.Count - 1);
             var albumMetaInformation = _metaService.GetAlbumMetaInformation(false);
             return index < albumMetaInformation.Count ? albumMetaInformation.ElementAt(index) : null;
         }
 
         private void Clear()
         {
-            Tracks.Clear();
-            Metadata.Clear();
             AlbumReleases.Clear();
             DiscDrives.Clear();
-
-            AlbumTitle = string.Empty;
-            AlbumArtist = string.Empty;
-            AlbumYear = string.Empty;
-            AlbumDisc = string.Empty;
 
             ReadingProgress = 0;
             ErrorProgress = 0;

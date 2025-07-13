@@ -26,13 +26,15 @@ using CUERipper.Avalonia.Events;
 using Avalonia.Threading;
 using CUERipper.Avalonia.Views;
 using Microsoft.Extensions.Localization;
-using System.IO;
-using System.Diagnostics;
+using CUERipper.Avalonia.Views.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using CUERipper.Avalonia.Models;
 
 namespace CUERipper.Avalonia;
 
-public partial class UpdateDialog : Window
+public partial class UpdateDialog : Window, ICUEDialog
 {
+    public required IServiceProvider ServiceProvider { get; init; }
     public required IUpdateService UpdateService { get; init; }
     public required IStringLocalizer Localizer { get; init; }
     public UpdateDialog()
@@ -80,11 +82,15 @@ public partial class UpdateDialog : Window
 
         if (success)
         {
-            var agreedToUpdate = await MessageBox.CreateDialogAsync(title: "Update downloaded"
-                , message: "CUERipper must be closed before applying the update."
-                , Owner as Window ?? throw new InvalidCastException("Failed to cast property Owner to type Window")
-                , Localizer
-                , MessageBox.MessageBoxType.OkCancel
+            var messageBox = new MessageBoxDefinition("Update downloaded"
+                , "CUERipper must be closed before applying the update."
+                , MessageBoxType.OkCancel
+            );
+
+            var agreedToUpdate = await MessageBox.CreateAsync(
+                Owner as Window ?? throw new InvalidCastException("Failed to cast property Owner to type Window")
+                , ServiceProvider
+                , messageBox
             );
 
             if (agreedToUpdate)
@@ -95,10 +101,15 @@ public partial class UpdateDialog : Window
         }
         else
         {
-            await MessageBox.CreateDialogAsync(title: "Update failed"
-                , message: "Failed to download update, check the error log."
-                , Owner as Window ?? throw new InvalidCastException("Failed to cast property Owner to type Window")
-                , Localizer
+            var messageBox = new MessageBoxDefinition("Update failed"
+                , "Failed to download update, check the error log."
+                , MessageBoxType.Ok
+            );
+            
+            await MessageBox.CreateAsync(
+                Owner as Window ?? throw new InvalidCastException("Failed to cast property Owner to type Window")
+                , ServiceProvider
+                , messageBox
             );
         }
 
@@ -110,11 +121,15 @@ public partial class UpdateDialog : Window
         Close();
     }
 
-    public static async Task CreateAsync(Window owner, IUpdateService updateService, IStringLocalizer localizer)
+    public static async Task CreateAsync(Window owner, IServiceProvider serviceProvider)
     {
+        var updateService = serviceProvider.GetRequiredService<IUpdateService>();
+        var localizer = serviceProvider.GetRequiredService<IStringLocalizer<Language>>();
+
         var updateWindow = new UpdateDialog()
         {
             Owner = owner
+            , ServiceProvider = serviceProvider
             , UpdateService = updateService
             , Localizer = localizer
         };

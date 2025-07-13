@@ -19,8 +19,12 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using CUERipper.Avalonia.Extensions;
+using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.ViewModels;
+using CUERipper.Avalonia.Views.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
+using System;
 using System.Threading.Tasks;
 #if NET47
 using System.Media;
@@ -28,15 +32,8 @@ using System.Media;
 
 namespace CUERipper.Avalonia.Views;
 
-public partial class MessageBox : Window
+public partial class MessageBox : Window, ICUEDialog<MessageBoxDefinition, bool>
 {
-    public enum MessageBoxType 
-    {
-        Ok
-        , YesNo
-        , OkCancel
-    }
-
     public bool Affirmative { get; set; }
 
     public MessageBox()
@@ -111,21 +108,21 @@ Vestibulum sed odio nibh."
         Close();
     }
 
-    public static async Task<bool> CreateDialogAsync(string title
-        , string message
-        , Window owner
-        , IStringLocalizer localizer
-        , MessageBoxType type = MessageBoxType.Ok)
+    public static async Task<bool> CreateAsync(Window owner
+        , IServiceProvider serviceProvider
+        , MessageBoxDefinition param)
     {
+        var localizer = serviceProvider.GetRequiredService<IStringLocalizer<Language>>();
+
         var messageBox = new MessageBox()
         {
             Owner = owner
-            , Title = string.IsNullOrWhiteSpace(title) ? "MessageBox" : title
+            , Title = string.IsNullOrWhiteSpace(param.Title) ? "MessageBox" : param.Title
             , DataContext = new MessageBoxViewModel()
         };
 
-        messageBox.SetMessage(message);
-        messageBox.SetType(type, localizer);
+        messageBox.SetMessage(param.Message);
+        messageBox.SetType(param.Type, localizer);
 
 #if NET47
         try

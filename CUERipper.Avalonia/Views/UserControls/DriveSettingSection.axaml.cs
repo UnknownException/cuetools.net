@@ -21,12 +21,14 @@ using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels.UserControls;
+using CUERipper.Avalonia.Views.UserControls.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 using System;
 
 namespace CUERipper.Avalonia.Views.UserControls;
 
-public partial class DriveSettingSection : UserControl
+public partial class DriveSettingSection : UserControl, ICUEUserControl
 {
     public DriveSettingSectionViewModel ViewModel => DataContext as DriveSettingSectionViewModel
         ?? throw new ViewModelMismatchException(typeof(DriveSettingSectionViewModel), DataContext?.GetType());
@@ -39,15 +41,15 @@ public partial class DriveSettingSection : UserControl
         InitializeComponent();
     }
 
-    public void Init(ICUEConfigFacade config
-        , ICUERipperService ripperService
-        , IStringLocalizer<Language> localizer
-        , IIconService iconService)
+    public void Init(IServiceProvider serviceProvider)
     {
-        _ripperService = ripperService;
-        _iconService = iconService;
+        _ripperService = serviceProvider.GetRequiredService<ICUERipperService>();
+        _iconService = serviceProvider.GetRequiredService<IIconService>();
 
-        var viewModel = new DriveSettingSectionViewModel(config, ripperService, localizer);
+        var config = serviceProvider.GetRequiredService<ICUEConfigFacade>();
+        var localizer = serviceProvider.GetRequiredService<IStringLocalizer<Language>>();
+
+        var viewModel = new DriveSettingSectionViewModel(config, _ripperService, localizer);
         viewModel.SetInitState();
         DataContext = viewModel;
 

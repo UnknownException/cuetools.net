@@ -1,4 +1,4 @@
-﻿#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2025 Max Visser
 /*
     Copyright (C) 2025 Max Visser
 
@@ -18,15 +18,16 @@
 #endregion
 using System;
 
-namespace CUERipper.Avalonia.Events
+namespace CUERipper.Avalonia.Views.UserControls.Abstractions
 {
-    public class GenericProgressEventArgs : EventArgs
+    public interface ICUEUserControl
     {
-        public float Progress { get; set; }
-
-        public GenericProgressEventArgs(float progress)
-        {
-            Progress = progress;
-        }
+        /// <summary>
+        /// Initialize component
+        /// </summary>
+        /// <param name="serviceProvider"></param>
+        // Allow the component to resolve its own depenencies beside the constructor.
+        // Avalonia controls must have parameterless constructors.
+        void Init(IServiceProvider serviceProvider);
     }
 }

@@ -20,5 +20,5 @@ using Avalonia.Media.Imaging;
 
 namespace CUERipper.Avalonia.Models
 {
-    public record AlbumRelease(string Name, Bitmap? Icon);
+    public record AlbumRelease(string Name, Bitmap? Icon, int Index);
 }

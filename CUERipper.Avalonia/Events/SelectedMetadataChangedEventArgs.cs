@@ -17,16 +17,17 @@
 */
 #endregion
 using System;
+using CUERipper.Avalonia.Models;
 
 namespace CUERipper.Avalonia.Events
 {
-    public class GenericProgressEventArgs : EventArgs
+    public class SelectedMetadataChangedEventArgs : EventArgs
     {
-        public float Progress { get; set; }
+        public AlbumMetadata? AlbumMetadata { get; set;}
 
-        public GenericProgressEventArgs(float progress)
+        public SelectedMetadataChangedEventArgs(AlbumMetadata? albumMetadata)
         {
-            Progress = progress;
+            AlbumMetadata = albumMetadata;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2025 Max Visser
 /*
     Copyright (C) 2025 Max Visser
 
@@ -17,16 +17,23 @@
 */
 #endregion
 using System;
+using System.Threading.Tasks;
+using Avalonia.Controls;
 
-namespace CUERipper.Avalonia.Events
+namespace CUERipper.Avalonia.Views.Abstractions
 {
-    public class GenericProgressEventArgs : EventArgs
+    public interface ICUEDialog
     {
-        public float Progress { get; set; }
+        abstract static Task CreateAsync(Window owner, IServiceProvider serviceProvider);
+    }
 
-        public GenericProgressEventArgs(float progress)
-        {
-            Progress = progress;
-        }
+    public interface ICUEDialog<T>
+    {
+        abstract static Task CreateAsync(Window owner, IServiceProvider serviceProvider, T parameters);
+    }
+
+    public interface ICUEDialog<T, TResult>
+    {
+        abstract static Task<TResult> CreateAsync(Window owner, IServiceProvider serviceProvider, T parameters);
     }
 }

@@ -1,4 +1,4 @@
-﻿#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2025 Max Visser
 /*
     Copyright (C) 2025 Max Visser
 
@@ -17,16 +17,17 @@
 */
 #endregion
 using System;
+using Avalonia.Controls;
 
-namespace CUERipper.Avalonia.Events
+namespace CUERipper.Avalonia.Models
 {
-    public class GenericProgressEventArgs : EventArgs
+    public class GridColumnDefinition<T>
     {
-        public float Progress { get; set; }
-
-        public GenericProgressEventArgs(float progress)
-        {
-            Progress = progress;
-        }
+        public required string Header { get; init; }
+        public bool HeaderBinding { get; init; }
+        public string? Binding { get; init; }
+        public bool ReadOnly { get; init; }
+        public bool Clipboard { get; init; }
+        public required Func<T, GridColumnDefinition<T>, DataGridColumn> Create;
     }
 }

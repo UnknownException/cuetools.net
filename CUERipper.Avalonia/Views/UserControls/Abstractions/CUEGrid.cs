@@ -1,0 +1,349 @@
+#region Copyright (C) 2025 Max Visser
+/*
+    Copyright (C) 2025 Max Visser
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, see <https://www.gnu.org/licenses/>.
+*/
+#endregion
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Controls.Templates;
+using Avalonia.Data;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
+using CUERipper.Avalonia.Models;
+
+namespace CUERipper.Avalonia.Views.UserControls;
+
+/// <summary>
+/// Provides extended capabilities for Avalonia grids
+/// </summary>
+/// <typeparam name="TColumnKey"></typeparam>
+/// <typeparam name="TColumnDefinition"></typeparam>
+public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : UserControl
+    where TColumnKey : notnull, Enum
+    where TColumnDefinition : GridColumnDefinition<TColumnKey>
+    where TRowViewModel : notnull
+{
+    private DataGrid? _dataGrid;
+    protected Dictionary<TColumnKey, TColumnDefinition> Columns = [];
+
+    public CUEGrid() { }
+    protected void InitGrid(DataGrid dataGrid)
+    {
+        _dataGrid = dataGrid;
+        _dataGrid.AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
+
+        foreach (var column in Columns)
+        {
+            _dataGrid.Columns.Add(column.Value.Create(column.Key, column.Value));
+        }
+
+        CreateContextMenu();
+    }
+
+    private void CreateContextMenu()
+    {
+        if (_dataGrid == null) return;
+
+        var newMenuItem = (string text, Func<Task> clickHandler) => {
+            var item = new MenuItem {
+                Header = text
+            };
+
+            item.Click += (_,_) => clickHandler.Invoke();
+
+            return item;
+        };
+
+        _dataGrid.ContextMenu ??= new ContextMenu();
+        var menuItems = _dataGrid.ContextMenu.Items;
+
+        menuItems.Add(newMenuItem("Copy column", OnCopyColumn));
+        menuItems.Add(newMenuItem("Paste column", OnPasteColumn));
+        menuItems.Add(newMenuItem("Copy range", OnCopyRange));
+        menuItems.Add(newMenuItem("Paste range", OnPasteRange));
+    }
+
+    public void SetReadOnly(bool state)
+    {
+        if (_dataGrid != null) _dataGrid.IsReadOnly = state;
+    }
+
+    private IClipboard? Clipboard => TopLevel.GetTopLevel(this)?.Clipboard;
+
+    private const char _columnSeparator = '\t';
+    private string GetTableExportHeader()
+    {
+        if (_dataGrid == null) return string.Empty;
+
+        var relevantColumns = Columns.Where(c => c.Value.Clipboard)
+            .Select(c => c.Key);
+
+        return string.Join(_columnSeparator, _dataGrid.Columns
+            .Where(c => c.Tag is TColumnKey)
+            .Where(c => relevantColumns.Contains((TColumnKey)c.Tag))
+            .Select(c => c.Header switch
+            {
+                string str => str
+                , TextBlock tb => tb.Text ?? string.Empty
+                , _ => string.Empty
+            }
+        ));
+    }
+
+    private async Task OnCopyRange()
+    {
+        if (_dataGrid == null || Clipboard == null) return;
+
+        var sb = new StringBuilder(GetTableExportHeader() + Environment.NewLine);
+        foreach (var item in _dataGrid.SelectedItems)
+        {
+            if (item is not TRowViewModel row) continue;
+            for (int i = 0; i < Columns.Count; ++i)
+            {
+                var column = Columns.ElementAt(i);
+                if (!column.Value.Clipboard) continue;
+
+                var property = column.Value.Binding;
+                if (!string.IsNullOrWhiteSpace(property))
+                {
+                    var propInfo = typeof(TRowViewModel).GetProperty(property);
+                    if (propInfo != null) sb.Append(propInfo.GetValue(row));
+                }
+
+                if (i != Columns.Count - 1) sb.Append(_columnSeparator);
+            }
+
+            sb.Append(Environment.NewLine);
+        }
+
+        await Clipboard.SetTextAsync(sb.ToString());
+    }
+
+    private async Task OnPasteRange()
+    {
+        if (_dataGrid == null || Clipboard == null) return;
+
+        var text = await Clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        var rows = text.Split(Environment.NewLine)
+            .Where(x => x != GetTableExportHeader());
+
+        var clipboardColumns = Columns.Where(c => c.Value.Clipboard).ToList();
+        var reflectedProperties = clipboardColumns.Where(c => !string.IsNullOrWhiteSpace(c.Value.Binding))
+            .Select(c => typeof(TRowViewModel).GetProperty(c.Value.Binding!))
+            .Where(c => c != null) 
+            .ToList();
+
+        if (clipboardColumns.Count != reflectedProperties.Count) return;
+    
+        for (int rowIter = 0; rowIter < _dataGrid.SelectedItems.Count && rowIter < rows.Count(); ++rowIter)
+        {
+            var columns = rows.ElementAt(rowIter).Split(_columnSeparator);
+            if (columns.Length < clipboardColumns.Count) continue;
+            if (_dataGrid.SelectedItems[rowIter] is not TRowViewModel row) continue;
+
+            for (int propIter = 0; propIter < reflectedProperties.Count; ++propIter)
+            {
+                if (!clipboardColumns.ElementAt(propIter).Value.ReadOnly)
+                {
+                    reflectedProperties[propIter]!.SetValue(row, columns[propIter]);
+                }
+            }
+        }
+    }
+
+    private async Task OnPasteColumn()
+    {
+        if (_dataGrid == null || Clipboard == null) return;
+
+        var text = await Clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        var selectedColumn = _dataGrid.CurrentColumn;
+        if (selectedColumn?.Tag is not TColumnKey key) return;
+
+        if (!Columns.TryGetValue(key, out var column)) return;
+        if (column.ReadOnly) return;
+
+        var property = column.Binding;
+        if (string.IsNullOrWhiteSpace(property)) return;
+
+        var propInfo = typeof(TRowViewModel).GetProperty(property);
+        if (propInfo == null) return;
+
+        foreach (TRowViewModel row in _dataGrid.SelectedItems)
+        {
+            propInfo.SetValue(row, text);
+        }
+    }
+
+    private async Task OnCopyColumn()
+    {
+        if (_dataGrid == null || Clipboard == null) return;
+
+        var selectedColumn = _dataGrid.CurrentColumn;
+        if (selectedColumn?.Tag is not TColumnKey key) return;
+
+        // Pick the last selected item
+        var selected = _dataGrid.SelectedItem;
+        if (selected is not TRowViewModel row) return;
+
+        if (!Columns.TryGetValue(key, out var column)) return;
+        if (!column.Clipboard) return;
+
+        var property = column.Binding;
+        if (string.IsNullOrWhiteSpace(property)) return;
+
+        var propInfo = typeof(TRowViewModel).GetProperty(property);
+        if (propInfo == null) return;
+
+        var text = propInfo.GetValue(row) as string;
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            await Clipboard.SetTextAsync(text);
+        }
+    }
+
+    private void OnDeleteColumn()
+    {
+        if (_dataGrid == null || Clipboard == null) return;
+
+        var selectedColumn = _dataGrid.CurrentColumn;
+        if (selectedColumn?.Tag is not TColumnKey key) return;
+
+        if (!Columns.TryGetValue(key, out var column)) return;
+        if (column.ReadOnly) return;
+
+        var property = column.Binding;
+        if (string.IsNullOrWhiteSpace(property)) return;
+
+        var propInfo = typeof(TRowViewModel).GetProperty(property);
+        if (propInfo == null) return;
+
+        foreach (TRowViewModel row in _dataGrid.SelectedItems)
+        {
+            propInfo.SetValue(row, string.Empty);
+        }
+    }
+
+    private async void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not DataGrid grid || grid.SelectedItem == null) return;
+        if (string.IsNullOrEmpty(e.KeySymbol) && e.Key != Key.Delete) return;
+        if (e.Key == Key.Tab || e.Key == Key.Escape) return;
+
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Alt) ||
+            e.KeyModifiers.HasFlag(KeyModifiers.Meta))
+            return;
+
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            // Set handled before awaiting...
+            e.Handled = true;
+
+            switch (e.Key)
+            {
+                case Key.C:
+                    if (grid.CurrentColumn != null) await OnCopyColumn();
+                    else await OnCopyRange();
+                    break;
+                case Key.V when !grid.IsReadOnly:
+                    if (grid.CurrentColumn != null) await OnPasteColumn();
+                    else await OnPasteRange();
+                    break;
+                case Key.X when !grid.IsReadOnly:
+                    await OnCopyColumn();
+                    OnDeleteColumn();
+                    break;
+                case Key.A:
+                    grid.SelectedIndex = -1;
+                    grid.Focus();
+
+                    e.Handled = false;
+                    break;
+                default:
+                    e.Handled = false;
+                    break;
+            }
+
+            return;
+        }
+
+        if (e.Key == Key.Delete && !grid.IsReadOnly)
+        {
+            e.Handled = true;
+
+            OnDeleteColumn();
+            return;
+        }
+
+        if (!grid.IsReadOnly)
+        {
+            grid.BeginEdit();
+        }
+    }
+
+    private static object GetHeaderFromDefinition(TColumnDefinition definition)
+    {
+        if (!definition.HeaderBinding) return definition.Header;
+
+        var textBlock = new TextBlock();
+        textBlock.Bind(TextBlock.TextProperty, new Binding(definition.Header, BindingMode.OneTime));
+
+        return textBlock;
+    }
+
+    protected static DataGridColumn CreateTextColumn(TColumnKey key, TColumnDefinition definition)
+        => new DataGridTextColumn {
+            Tag = key
+            , Header = GetHeaderFromDefinition(definition)
+            , Binding = definition.Binding != null ? new Binding(definition.Binding,
+                definition.ReadOnly ? BindingMode.OneWay : BindingMode.TwoWay) : null
+            , IsReadOnly = definition.ReadOnly
+        };
+
+    protected static DataGridColumn CreateProgressColumn(TColumnKey key, TColumnDefinition definition)
+    { 
+        var progressBarTemplate = new FuncDataTemplate<object>((_, _) => {
+            var progressBar = new ProgressBar {
+                Minimum = 0
+                , Maximum = 100
+                , Height = 18
+                , Width = 80
+                , ShowProgressText = true
+            };
+
+            if (definition.Binding != null)
+            {
+                progressBar.Bind(ProgressBar.ValueProperty, new Binding(definition.Binding, BindingMode.OneWay));
+            }
+
+            return progressBar;
+        }, true);
+
+        return new DataGridTemplateColumn {
+            Tag = key
+            , Header = GetHeaderFromDefinition(definition)
+            , CellTemplate = progressBarTemplate
+        };
+    }
+}
