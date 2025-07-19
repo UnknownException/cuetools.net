@@ -28,6 +28,9 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using CUERipper.Avalonia.Models;
+#if NET47
+using CUERipper.Avalonia.Compatibility;
+#endif
 
 namespace CUERipper.Avalonia.Views.UserControls;
 
@@ -45,6 +48,7 @@ public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : Us
     protected Dictionary<TColumnKey, TColumnDefinition> Columns = [];
 
     public CUEGrid() { }
+
     protected void InitGrid(DataGrid dataGrid)
     {
         _dataGrid = dataGrid;
@@ -88,7 +92,7 @@ public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : Us
 
     private IClipboard? Clipboard => TopLevel.GetTopLevel(this)?.Clipboard;
 
-    private const char _columnSeparator = '\t';
+    private const string _columnSeparator = "\t";
     private string GetTableExportHeader()
     {
         if (_dataGrid == null) return string.Empty;
@@ -150,11 +154,11 @@ public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : Us
         var clipboardColumns = Columns.Where(c => c.Value.Clipboard).ToList();
         var reflectedProperties = clipboardColumns.Where(c => !string.IsNullOrWhiteSpace(c.Value.Binding))
             .Select(c => typeof(TRowViewModel).GetProperty(c.Value.Binding!))
-            .Where(c => c != null) 
+            .Where(c => c != null)
             .ToList();
 
         if (clipboardColumns.Count != reflectedProperties.Count) return;
-    
+
         for (int rowIter = 0; rowIter < _dataGrid.SelectedItems.Count && rowIter < rows.Count(); ++rowIter)
         {
             var columns = rows.ElementAt(rowIter).Split(_columnSeparator);
@@ -245,11 +249,51 @@ public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : Us
         }
     }
 
+    private static readonly HashSet<Key> _ignoredKeys =
+    [
+        Key.LeftCtrl
+        , Key.RightCtrl
+        , Key.LeftAlt
+        , Key.RightAlt
+        , Key.LeftShift
+        , Key.RightShift
+        , Key.Tab
+        , Key.Enter
+        , Key.Escape
+        , Key.LWin
+        , Key.RWin
+        , Key.CapsLock
+        , Key.NumLock
+        , Key.Scroll
+        , Key.Pause
+        , Key.Home
+        , Key.End
+        , Key.Insert
+        , Key.PageUp
+        , Key.PageDown
+        , Key.PrintScreen
+        , Key.Up
+        , Key.Down
+        , Key.Left
+        , Key.Right
+        , Key.F1
+        , Key.F2
+        , Key.F3
+        , Key.F4
+        , Key.F5
+        , Key.F6
+        , Key.F7
+        , Key.F8
+        , Key.F9
+        , Key.F10
+        , Key.F11
+        , Key.F12
+    ];
+
     private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (sender is not DataGrid grid || grid.SelectedItem == null) return;
-        if (string.IsNullOrEmpty(e.KeySymbol) && e.Key != Key.Delete) return;
-        if (e.Key == Key.Tab || e.Key == Key.Escape) return;
+        if (_ignoredKeys.Contains(e.Key)) return;
 
         if (e.KeyModifiers.HasFlag(KeyModifiers.Alt) ||
             e.KeyModifiers.HasFlag(KeyModifiers.Meta))
@@ -257,34 +301,7 @@ public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : Us
 
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            // Set handled before awaiting...
-            e.Handled = true;
-
-            switch (e.Key)
-            {
-                case Key.C:
-                    if (grid.CurrentColumn != null) await OnCopyColumn();
-                    else await OnCopyRange();
-                    break;
-                case Key.V when !grid.IsReadOnly:
-                    if (grid.CurrentColumn != null) await OnPasteColumn();
-                    else await OnPasteRange();
-                    break;
-                case Key.X when !grid.IsReadOnly:
-                    await OnCopyColumn();
-                    OnDeleteColumn();
-                    break;
-                case Key.A:
-                    grid.SelectedIndex = -1;
-                    grid.Focus();
-
-                    e.Handled = false;
-                    break;
-                default:
-                    e.Handled = false;
-                    break;
-            }
-
+            await OnCtrlKeyDown(grid, e);
             return;
         }
 
@@ -296,9 +313,30 @@ public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : Us
             return;
         }
 
-        if (!grid.IsReadOnly)
+        if (!grid.IsReadOnly) grid.BeginEdit();
+    }
+
+    private async Task OnCtrlKeyDown(DataGrid grid, KeyEventArgs e)
+    {
+        switch (e.Key)
         {
-            grid.BeginEdit();
+            case Key.C:
+                e.Handled = true;
+                await (grid.CurrentColumn != null ? OnCopyColumn() : OnCopyRange());
+                break;
+            case Key.V when !grid.IsReadOnly:
+                e.Handled = true;
+                await (grid.CurrentColumn != null ? OnPasteColumn() : OnPasteRange());
+                break;
+            case Key.X when !grid.IsReadOnly:
+                e.Handled = true;
+                await OnCopyColumn();
+                OnDeleteColumn();
+                break;
+            case Key.A:
+                grid.SelectedIndex = -1;
+                grid.Focus();
+                break;
         }
     }
 
@@ -322,7 +360,7 @@ public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : Us
         };
 
     protected static DataGridColumn CreateProgressColumn(TColumnKey key, TColumnDefinition definition)
-    { 
+    {
         var progressBarTemplate = new FuncDataTemplate<object>((_, _) => {
             var progressBar = new ProgressBar {
                 Minimum = 0

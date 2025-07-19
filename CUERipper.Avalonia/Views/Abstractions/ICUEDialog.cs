@@ -24,16 +24,22 @@ namespace CUERipper.Avalonia.Views.Abstractions
 {
     public interface ICUEDialog
     {
+#if !NET47
         abstract static Task CreateAsync(Window owner, IServiceProvider serviceProvider);
+#endif
     }
 
     public interface ICUEDialog<T>
     {
+#if !NET47
         abstract static Task CreateAsync(Window owner, IServiceProvider serviceProvider, T parameters);
+#endif
     }
 
     public interface ICUEDialog<T, TResult>
     {
+#if !NET47
         abstract static Task<TResult> CreateAsync(Window owner, IServiceProvider serviceProvider, T parameters);
+#endif
     }
 }

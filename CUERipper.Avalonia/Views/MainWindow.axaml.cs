@@ -666,7 +666,6 @@ namespace CUERipper.Avalonia.Views
                 case nameof(MetaGrid.ViewModel.AlbumDisc):
                     ViewModel.AlbumDisc = metaGrid.ViewModel.AlbumDisc;
                     break;
-
             }
         }
 
