@@ -45,6 +45,9 @@ namespace CUETools.Interop
 
         public const string CDROM_DEVICE_PATH = "/dev/sr";
 
+        public const int RTLD_LOCAL = 0;
+        public const int RTLD_LAZY = 1;
+
         #endregion
 
         #region Structs
@@ -104,9 +107,9 @@ namespace CUETools.Interop
         #endregion
 
         #region Functions
-
+    
         private const string LIBC = "libc";
-
+        
         [DllImport(LIBC, SetLastError = true, CharSet = CharSet.Ansi)]
         public static extern IntPtr strerror(int errnum);
 
@@ -124,6 +127,15 @@ namespace CUETools.Interop
 
         [DllImport(LIBC, SetLastError = true, CharSet = CharSet.Ansi)]
         public static extern int lstat(string path, IntPtr stat);
+
+        [DllImport(LIBC, SetLastError = true, CharSet = CharSet.Ansi)]
+        public static extern IntPtr dlopen(string file, int mode);
+
+        [DllImport(LIBC, SetLastError = true)]
+        public static extern int dlclose(IntPtr handle);
+
+        [DllImport(LIBC, SetLastError = true, CharSet = CharSet.Ansi)]
+        public static extern IntPtr dlsym(IntPtr handle, string name);
 
         #endregion
 

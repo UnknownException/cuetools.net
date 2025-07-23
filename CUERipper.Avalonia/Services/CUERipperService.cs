@@ -327,7 +327,9 @@ namespace CUERipper.Avalonia.Services
     #endif
 
                     bool recoveryPossible = false;
-                    if (cueSheet.CTDB.QueryExceptionStatus == WebExceptionStatus.Success && audioSource.FailedSectors.PopulationCount() != 0)
+                    if (ripSettings.EncodingConfiguration[0].IsLossless
+                        && cueSheet.CTDB.QueryExceptionStatus == WebExceptionStatus.Success
+                        && audioSource.FailedSectors.PopulationCount() != 0)
                     {
                         foreach (DBEntry entry in cueSheet.CTDB.Entries)
                         {

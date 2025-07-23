@@ -26,6 +26,7 @@ using CUERipper.Avalonia.Configuration;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Services;
 using CUERipper.Avalonia.Services.Abstractions;
+using CUERipper.Avalonia.Utilities;
 using CUERipper.Avalonia.ViewModels;
 using CUERipper.Avalonia.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,6 +63,8 @@ namespace CUERipper.Avalonia
                         , retainedFileCountLimit: 10
                     ).CreateLogger();
             }
+
+            LibraryResolver.Init();
         }
 
         public override void OnFrameworkInitializationCompleted()
