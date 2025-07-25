@@ -23,7 +23,6 @@ using System.IO;
 
 namespace CUERipper.Avalonia.Utilities;
 
-#if NET8_0_OR_GREATER
 /// <summary>
 /// Helper class that'll allow loading libraries from the plugins folder on Linux.
 /// </summary>
@@ -31,6 +30,7 @@ public static class LibraryResolver
 {
     public static void Init()
     {
+#if NET8_0_OR_GREATER
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return;
 
         AppDomain.CurrentDomain.AssemblyLoad += (sender, args) =>
@@ -45,8 +45,10 @@ public static class LibraryResolver
             }
             catch { }
         };
+#endif
     }
 
+#if NET8_0_OR_GREATER
     private static IntPtr Resolve(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
     {
         if (libraryName.EndsWith(".so"))
@@ -67,5 +69,5 @@ public static class LibraryResolver
 
         return IntPtr.Zero;
     }
+#endif    
 }
-#endif

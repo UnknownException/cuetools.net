@@ -4,8 +4,6 @@ set -euo pipefail
 PUBLISH_BASE="./bin/Publish/linux-x64/CUERipper.Avalonia"
 NATIVE_PLUGIN_BASE="$PUBLISH_BASE/plugins/x64"
 
-apt-get install -y autoconf automake libtool-bin
-
 mkdir -p "$NATIVE_PLUGIN_BASE"
 
 # Compile libFLAC
@@ -44,8 +42,9 @@ find . -name "*.csproj" | while read -r csproj; do
         fi
 
         echo "Publishing $csproj to $output"
-        dotnet publish "$csproj" -f netstandard2.0 -c Release -r linux-x64 -o "$output"
+        dotnet publish "$csproj" -f netstandard2.0 -c Release -r linux-x64 -o "$output" /p:DebugType=None /p:DebugSymbols=false
     fi
 done
 
-dotnet publish ./CUERipper.Avalonia/CUERipper.Avalonia.csproj -f net8.0 -c Release -r linux-x64 -o "$PUBLISH_BASE"
+dotnet publish ./CUERipper.Avalonia/CUERipper.Avalonia.csproj -f net8.0 -c Release -r linux-x64 -o "$PUBLISH_BASE" /p:DebugType=None /p:DebugSymbols=false --self-contained true
+
