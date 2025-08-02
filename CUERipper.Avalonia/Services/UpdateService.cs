@@ -100,6 +100,9 @@ namespace CUERipper.Avalonia.Services
                 , Date: latestRelease.Content.PublishedAt
             );
 
+            _logger.LogInformation("Update is {UpdateAvailability}."
+                , UpdateMetadata.UpdateAvailable() ? "available" : "not available");
+
             return true;
         }
 
@@ -163,7 +166,9 @@ namespace CUERipper.Avalonia.Services
             }
 
             bool isCacheValid = (DateTime.Now - lastUpdateCheck).Days < 3;
-            _logger.LogInformation("{State} check GitHub for update.", isCacheValid ? "Should" : "Should not");
+            _logger.LogInformation("{GitHubState} check remote for update, cache {CacheState}."
+                , isCacheValid ? "Should not" : "Should"
+                , isCacheValid ? "is still valid" : "has expired");
             if (!isCacheValid) return new(false, null, null);
 
             try
@@ -171,7 +176,7 @@ namespace CUERipper.Avalonia.Services
                 var jsonBytes = Convert.FromBase64String(content[1]);
                 var githubRelease = JsonConvert.DeserializeObject<GithubRelease?>(Encoding.UTF8.GetString(jsonBytes));
 
-                _logger.LogInformation("Found valid update information in disk cache.");
+                _logger.LogInformation("Update information in cache is valid.");
                 return new(true, githubRelease, content[2]);
             }
             catch(Exception ex)

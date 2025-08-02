@@ -108,24 +108,29 @@ namespace CUERipper.Avalonia.Services
 
         public IImmutableList<AlbumMetadata> GetAlbumMetaInformation(bool advancedSearch)
         {
-            _logger.LogInformation("Retrieving album information {TOC}", _toc);
-
             if (_toc.AudioTracks == 0) return [];
 
-            if (!advancedSearch && _cache.TryGetValue(_toc.TOCID, out var cached)) return cached;
+            if (!advancedSearch && _cache.TryGetValue(_toc.TOCID, out var cached))
+            {
+                _logger.LogInformation("Album is available in cache for {TOCID}", _toc.TOCID);
+                return cached;
+            }
 
-            CUEMetadata? userCache = null;
+            _logger.LogInformation("Retrieving album information {TOCID}", _toc.TOCID);
+
+            CUEMetadata? userEntry = null;
             try
             {
-                userCache = CUEMetadata.Load(_toc.TOCID);
+                userEntry = CUEMetadata.Load(_toc.TOCID);
+                _logger.LogInformation("Found user entry for {TOCID}", _toc.TOCID);
             }
             catch (FileNotFoundException)
             {
-                _logger.LogInformation("Album not found in user cache.");
+                _logger.LogInformation("No user entry for {TOCID}", _toc.TOCID);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Non fatal error parsing CUE Metadata cache.");
+                _logger.LogWarning(ex, "Non fatal error parsing CUE Metadata cache.");
             }
 
             var remoteResult = CUESheet.LookupRemoteAlbumInfo(Constants.ApplicationShortName
@@ -137,9 +142,11 @@ namespace CUERipper.Avalonia.Services
                 , checkStop: () => { }
             );
 
+            _logger.LogInformation("{Count} remote results for {TOCID}", remoteResult.Count, _toc.TOCID);
+
             var result = remoteResult.Concat([CreateDummy(_toc)])
                 .Select(entry => new AlbumMetadata(MetaSourceHelper.FromString(entry.ImageKey), entry.metadata))
-                .PrependIf(userCache != null, new AlbumMetadata(MetaSource.Local, userCache!))
+                .PrependIf(userEntry != null, new AlbumMetadata(MetaSource.Local, userEntry!))
                 .ToImmutableList();
 
             // Only cache if remote call was successful
@@ -157,7 +164,6 @@ namespace CUERipper.Avalonia.Services
 
         public IEnumerable<string> GetTracksLength()
         {
-            _logger.LogInformation("Retrieving album information {TOC}", _toc);
             if (_toc.AudioTracks == 0) return [];
 
             var result = new List<string>();
@@ -181,6 +187,8 @@ namespace CUERipper.Avalonia.Services
 
         public async Task<Bitmap?> FetchImageAsync(string uri, CancellationToken ct)
         {
+            _logger.LogInformation("Fetching image from {Uri}.", uri);
+
             if (string.IsNullOrWhiteSpace(uri)) return null;
 
             if (!Directory.Exists(Constants.PathImageCache))
@@ -213,7 +221,7 @@ namespace CUERipper.Avalonia.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to retrieve album cover from {uri}", uri);
+                _logger.LogError(ex, "Failed to retrieve album cover from {Uri}", uri);
                 return null;
             }
         }

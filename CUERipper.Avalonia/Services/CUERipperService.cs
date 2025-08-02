@@ -49,8 +49,8 @@ namespace CUERipper.Avalonia.Services
         private Dictionary<char, DriveInformation> _driveList = [];
 
         private char _selectedDrive = Constants.NullDrive;
-        public char SelectedDrive 
-        { 
+        public char SelectedDrive
+        {
             get => _selectedDrive;
             set
             {
@@ -79,15 +79,32 @@ namespace CUERipper.Avalonia.Services
             _logger = logger;
         }
 
-        private static ICDRipper CreateCDRipperInstance()
-            => Activator.CreateInstance(CUEProcessorPlugins.ripper) as ICDRipper
-                ?? throw new NullReferenceException("Failed to create instance of CD ripper.");
+        private ICDRipper? CreateCDRipperInstance()
+        {
+            const string failedToCreateInstance = "Failed to create an instance of CD ripper, is the library missing?";
+
+            if (CUEProcessorPlugins.ripper == null)
+            {
+                _logger.LogError(failedToCreateInstance);
+                return null;
+            }
+
+            var cdRipper = Activator.CreateInstance(CUEProcessorPlugins.ripper) as ICDRipper;
+            if (cdRipper == null)
+            {
+                _logger.LogError(failedToCreateInstance);
+            }
+
+            return cdRipper;
+        }
 
         private DriveInformation QueryDriveName(char drive)
         {
-            using var audioSource = CreateCDRipperInstance();
-
             var nullResult = new DriveInformation(drive, $"{drive}:", string.Empty, false);
+
+            using var audioSource = CreateCDRipperInstance();
+            if (audioSource == null) return nullResult;
+
             try
             {
                 return audioSource.Open(drive)
@@ -122,7 +139,7 @@ namespace CUERipper.Avalonia.Services
             var result = new Dictionary<char, DriveInformation>();
 
             var drives = CDDrivesList.DrivesAvailable();
-            foreach(var drive in drives)
+            foreach (var drive in drives)
             {
                 result.Add(drive, QueryDriveName(drive));
             }
@@ -151,6 +168,8 @@ namespace CUERipper.Avalonia.Services
             if (!IsDriveAccessible()) return null;
 
             using var audioSource = CreateCDRipperInstance();
+            if (audioSource == null) return null;
+
             try
             {
                 if (!audioSource.Open(SelectedDrive)) return null;
@@ -169,6 +188,8 @@ namespace CUERipper.Avalonia.Services
             if (!IsDriveAccessible()) return;
 
             using var audioSource = CreateCDRipperInstance();
+            if (audioSource == null) return;
+
             try
             {
                 audioSource.Open(SelectedDrive);
@@ -205,6 +226,8 @@ namespace CUERipper.Avalonia.Services
 
             return Task.Factory.StartNew(() =>
             {
+                _logger.LogInformation("Rip task has been started.");
+
                 if (ripSettings.EncodingConfiguration.None())
                 {
                     _logger.LogError("Ripping has failed! No encoding configuration found");
@@ -213,8 +236,10 @@ namespace CUERipper.Avalonia.Services
                     return;
                 }
 
-                if (ripSettings.EncodingConfiguration.Length > 1 
-                    && !ripSettings.EncodingConfiguration[0].IsLossless)
+                var initialEncoding = ripSettings.EncodingConfiguration[0];
+
+                if (ripSettings.EncodingConfiguration.Length > 1
+                    && !initialEncoding.IsLossless)
                 {
                     _logger.LogError("Ripping has failed! First encoding must be lossless");
 
@@ -222,7 +247,7 @@ namespace CUERipper.Avalonia.Services
                     return;
                 }
 
-                SetEncodingVariables(ripSettings.EncodingConfiguration[0]);
+                SetEncodingVariables(initialEncoding);
 
                 using var audioSource = CreateCDRipper(selectedDrive, ripSettings, ct);
                 if (audioSource == null)
@@ -254,13 +279,13 @@ namespace CUERipper.Avalonia.Services
 
                 cueSheet.CopyMetadata(metadataEntry.metadata);
 
-                var encodingFormat = ripSettings.EncodingConfiguration[0].Encoding;
-                var encoderType = ripSettings.EncodingConfiguration[0].IsLossless
+                var encodingFormat = initialEncoding.Encoding;
+                var encoderType = initialEncoding.IsLossless
                     ? AudioEncoderType.Lossless
                     : AudioEncoderType.Lossy;
 
-                cueSheet.OutputStyle = ripSettings.EncodingConfiguration[0].CUEStyleIndex == 0
-                        ? CUEStyle.SingleFileWithCUE
+                cueSheet.OutputStyle = initialEncoding.CUEStyleIndex == 0
+                        ? CanEmbedCUE(initialEncoding) ? CUEStyle.SingleFileWithCUE : CUEStyle.SingleFile
                         : CUEStyle.GapsAppended;
 
                 string pathOut = cueSheet.GenerateUniqueOutputPath(_config.PathFormat,
@@ -307,16 +332,30 @@ namespace CUERipper.Avalonia.Services
                 try
                 {
                     if (_config.DisableEjectDisc)
+                    {
+                        _logger.LogInformation("Disabling disc ejecting.");
                         audioSource.DisableEjectDisc(true);
+                    }
 
-                    if (ripSettings.TestAndCopy) cueSheet.TestBeforeCopy();
-                    else cueSheet.ArTestVerify = null;
+                    if (ripSettings.TestAndCopy)
+                    {
+                        _logger.LogInformation("Testing before copy.");
+                        cueSheet.TestBeforeCopy();
+                    }
+                    else
+                    {
+                        cueSheet.ArTestVerify = null;
+                    }
+
+                    _logger.LogInformation("Ripping has started.");
 
                     cueSheet.Go();
 
                     _logger.LogInformation("Ripping has finished.");
 
-    #if !DEBUG
+#if !DEBUG
+                    _logger.LogInformation("Submitting to CUETools Database.");
+
                     cueSheet.CTDB.Submit(
                         (int)cueSheet.ArVerify.WorstConfidence() + 1,
                         audioSource.CorrectionQuality == 0 ? 0 :
@@ -324,7 +363,7 @@ namespace CUERipper.Avalonia.Services
                         cueSheet.Metadata.Artist,
                         cueSheet.Metadata.Title,
                         cueSheet.TOC.Barcode);
-    #endif
+#endif
 
                     bool recoveryPossible = false;
                     if (ripSettings.EncodingConfiguration[0].IsLossless
@@ -334,6 +373,7 @@ namespace CUERipper.Avalonia.Services
                         foreach (DBEntry entry in cueSheet.CTDB.Entries)
                         {
                             recoveryPossible = entry.hasErrors && entry.canRecover;
+                            _logger.LogInformation("Found recovery record.");
                             break;
                         }
                     }
@@ -342,6 +382,7 @@ namespace CUERipper.Avalonia.Services
                     {
                         if (recoveryPossible && !_config.SkipRepair)
                         {
+                            _logger.LogInformation("Start repairing tracks.");
                             var repairCue = RepairTracks(encoderType, encodingFormat, cueSheet.OutputStyle, metadataEntry, pathOut, ct);
                             if (repairCue != null)
                             {
@@ -349,6 +390,10 @@ namespace CUERipper.Avalonia.Services
                                 cueSheet = repairCue;
                                 recoveryPossible = false;
                             }
+                        }
+                        else if (!_config.SkipRepair)
+                        {
+                            _logger.LogWarning("Recovery is currently not possible for this disc.");
                         }
 
                         EncodeTracksPerConfig(pathOut, ripSettings.EncodingConfiguration, metadataEntry, ct);
@@ -382,10 +427,16 @@ namespace CUERipper.Avalonia.Services
                     cueSheet.Close();
 
                     if (_config.DisableEjectDisc)
+                    {
+                        _logger.LogInformation("Enabling disc ejecting.");
                         audioSource.DisableEjectDisc(false);
+                    }
 
                     if (_config.EjectAfterRip)
+                    {
+                        _logger.LogInformation("Ejecting disc from drive.");
                         EjectTray();
+                    }
                 }
             }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
@@ -393,6 +444,8 @@ namespace CUERipper.Avalonia.Services
         private ICDRipper? CreateCDRipper(char selectedDrive, RipSettings ripSettings, CancellationToken ct)
         {
             var audioSource = CreateCDRipperInstance();
+            if (audioSource == null) return null;
+
             if (!audioSource.Open(selectedDrive))
             {
                 audioSource.Dispose();
@@ -428,7 +481,7 @@ namespace CUERipper.Avalonia.Services
                 using var albumCover = GetAlbumCoverFromCache(albumCoverUri);
                 if (albumCover != null)
                 {
-                    Bitmap? embeddedArtwork = null; 
+                    Bitmap? embeddedArtwork = null;
                     if (albumCover.PixelSize.Width > _config.MaxAlbumArtSize
                         || albumCover.PixelSize.Height > _config.MaxAlbumArtSize)
                     {
@@ -482,8 +535,8 @@ namespace CUERipper.Avalonia.Services
             using var md5 = MD5.Create();
             var fileIdentifier = md5.ComputeHashAsString(coverUri);
             var filePath = Path.Combine(Constants.PathImageCache, $"{fileIdentifier}{Constants.JpgExtension}");
-            
-            if(File.Exists(filePath))
+
+            if (File.Exists(filePath))
             {
                 Directory.CreateDirectory(outputFolder);
                 File.Copy(filePath, Path.Combine(outputFolder, $"{Constants.HiResCoverName}{Constants.JpgExtension}"), true);
@@ -586,7 +639,11 @@ namespace CUERipper.Avalonia.Services
                 string destination = $"{cueDirectory}/{i}-{encodingConfig.Encoding}";
                 string destinationCuePath = $"{destination}/{cueFileName}";
 
+                _logger.LogInformation("Start {Encoding} encoding, preset #{Number}.", encodingConfig.Encoding, i);
+
                 EncodeTracks(cuePath, destination, destinationCuePath, encodingConfig, metadataEntry, i, encodingConfiguration.Length - 1, ct);
+
+                _logger.LogInformation("Finished {Encoding} encoding, preset #{Number}.", encodingConfig.Encoding, i);
             }
 
             SetEncodingVariables(encodingConfiguration[0]);
@@ -605,10 +662,10 @@ namespace CUERipper.Avalonia.Services
             {
                 Action = CUEAction.Encode,
                 OutputStyle = encodingConfig.CUEStyleIndex == 0
-                        ? CUEStyle.SingleFileWithCUE
+                        ? CanEmbedCUE(encodingConfig) ? CUEStyle.SingleFileWithCUE : CUEStyle.SingleFile
                         : CUEStyle.GapsAppended
             };
-            
+
             cueSheet.CUEToolsProgress += (object? sender, CUEToolsProgressEventArgs args) =>
             {
                 if (ct.IsCancellationRequested) throw new StopException();
@@ -681,5 +738,12 @@ namespace CUERipper.Avalonia.Services
                 _config.OutputCompression = AudioEncoderType.Lossy;
             }
         }
+
+        private bool CanEmbedCUE(EncodingConfiguration encodingConfig)
+            => _config.Formats
+                .Where(f => f.Key == encodingConfig.Encoding)
+                .Select(e => e.Value)
+                .Single()
+                .allowEmbed;
     }
 }

@@ -164,7 +164,7 @@ namespace CUERipper.Avalonia
 
             Log.CloseAndFlush();
 
-            if (!Design.IsDesignMode)
+            if (!Design.IsDesignMode && Directory.Exists(Constants.PathImageCache))
             {
                 var fileInDir = Directory.GetFiles(Constants.PathImageCache, $"*{Constants.JpgExtension}", SearchOption.TopDirectoryOnly);
                 foreach (var file in fileInDir)

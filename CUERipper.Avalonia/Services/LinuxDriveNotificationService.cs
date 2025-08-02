@@ -26,6 +26,7 @@ using CUETools.Ripper;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 
@@ -82,13 +83,18 @@ namespace CUERipper.Avalonia.Services
                 }
 
                 var mountedDrives = currentDrives.Where(c => !knownDrives
-                    .Any(k => c.Key == k.Key));
+                    .Any(k => c.Key == k.Key))
+                    .ToImmutableList();
 
                 var unmountedDrives = knownDrives.Where(k => !currentDrives
-                    .Any(c => c.Key == k.Key));
+                    .Any(c => c.Key == k.Key))
+                    .ToImmutableList();
 
-                if (mountedDrives.Any() || unmountedDrives.Any())
+                if (!mountedDrives.IsEmpty || !unmountedDrives.IsEmpty)
                 {
+                    mountedDrives.ForEach(d => _logger.LogInformation("Drive {DriveKey} mounted.", d.Key));
+                    unmountedDrives.ForEach(d => _logger.LogInformation("Drive {DriveKey} unmounted.", d.Key));
+
                     _onDriveRefresh?.Invoke();
                 }
 
@@ -98,6 +104,8 @@ namespace CUERipper.Avalonia.Services
 
                 foreach (var drive in driveStateChange)
                 {
+                    _logger.LogInformation("Drive state has changed for drive {DriveKey}.", drive.Key);
+
                     if (drive.Value) _onDriveMounted?.Invoke(drive.Key);
                     else _onDriveUnmounted?.Invoke(drive.Key);
                 }
