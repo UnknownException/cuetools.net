@@ -32,15 +32,76 @@ namespace CUETools.Interop
     {
         #region Constants
 
+        /// <summary>
+        /// <para><c>#define CDROM_DRIVE_STATUS 0x5326</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/uapi/linux/cdrom.h">include/uapi/linux/cdrom.h</see></para>
+        /// </summary>
         public const uint CDROM_DRIVE_STATUS = 0x5326;
+
+        /// <summary>
+        /// <para><c>#define CDROM_LOCKDOOR 0x5329</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/uapi/linux/cdrom.h">include/uapi/linux/cdrom.h</see></para>
+        /// </summary>
         public const int CDROM_LOCKDOOR = 0x5329;
 
+        /// <summary>
+        /// <para><c>#define CDS_DISC_OK 4</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/uapi/linux/cdrom.h">include/uapi/linux/cdrom.h</see></para>
+        /// </summary>
         public const int CDS_DISC_OK = 4;
+
+        /// <summary>
+        /// <para><c>#define O_RDONLY 0</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/fcntl.h">include/uapi/asm-generic/fcntl.h</see></para>
+        /// </summary>
         public const int O_RDONLY = 0;
 
+        /// <summary>
+        /// <para><c>#define O_NONBLOCK (1 << 11)</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/fcntl.h">include/uapi/asm-generic/fcntl.h</see></para>
+        /// </summary>
+        public const int O_NONBLOCK = 0x800;
+
+        /// <summary>
+        /// <para><c>#define EIO 5</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/errno-base.h">include/uapi/asm-generic/errno-base.h</see></para>
+        /// </summary>
+        public const int EIO = 5;
+
+        /// <summary>
+        /// <para><c>#define SG_DXFER_NONE (-1)</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/scsi/sg.h">include/scsi/sg.h</see></para>
+        /// </summary>
+        public const int SG_DXFER_NONE = -1;
+
+        /// <summary>
+        /// <para><c>#define SG_DXFER_TO_DEV (-2)</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/scsi/sg.h">include/scsi/sg.h</see></para>
+        /// </summary>
+        public const int SG_DXFER_TO_DEV = -2;
+
+        /// <summary>
+        /// <para><c>#define SG_DXFER_FROM_DEV (-3)</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/scsi/sg.h">include/scsi/sg.h</see></para>
+        /// </summary>
         public const int SG_DXFER_FROM_DEV = -3;
 
+        /// <summary>
+        /// <para><c>DID_OK = 0x00</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/scsi/scsi_status.h">include/scsi/scsi_status.h</see></para>
+        /// </summary>
+        public const ushort DID_OK = 0;
+
+        /// <summary>
+        /// <para><c>#define SG_GET_RESERVED_SIZE 0x2272</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/scsi/sg.h">include/scsi/sg.h</see></para>
+        /// </summary>
         public const int SG_GET_RESERVED_SIZE = 0x2272;
+
+        /// <summary>
+        /// <para><c>#define SG_IO 0x2285</c> —
+        /// <see href="https://github.com/torvalds/linux/blob/master/include/scsi/sg.h">include/scsi/sg.h</see></para>
+        /// </summary>
         public const int SG_IO = 0x2285;
 
         public const string CDROM_DEVICE_PATH = "/dev/sr";
@@ -52,7 +113,10 @@ namespace CUETools.Interop
 
         #region Structs
 
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        /// <summary>
+        /// <para><see href="https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/stat.h">arch/x86/include/uapi/asm/stat.h</see></para>
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
         struct Stat
         {
             public ulong st_dev;
@@ -77,7 +141,10 @@ namespace CUETools.Interop
             public long reserved2;
         }
 
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        /// <summary>
+        /// <para><see href="https://github.com/torvalds/linux/blob/master/include/scsi/sg.h">include/scsi/sg.h</see></para>
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
         public struct SG_IO_HDR
         {
             public int interface_id;

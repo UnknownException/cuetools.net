@@ -32,8 +32,10 @@ using System.Threading;
 
 namespace CUERipper.Avalonia.Services
 {
-    public class LinuxDriveNotificationService : IDriveNotificationService, IDisposable
+    public sealed class LinuxDriveNotificationService : IDriveNotificationService, IDisposable
     {
+        private const int PollInterval = 500;
+
         private readonly Thread _thread;
         private volatile bool _requestExit;
 
@@ -52,7 +54,7 @@ namespace CUERipper.Avalonia.Services
 
         private readonly ILogger _logger;
 
-        public LinuxDriveNotificationService(ILogger<NullDriveNotificationService> logger)
+        public LinuxDriveNotificationService(ILogger<LinuxDriveNotificationService> logger)
         {
             _logger = logger;
             _thread = new Thread(ScanDrives)
@@ -80,6 +82,8 @@ namespace CUERipper.Avalonia.Services
                 catch(Exception ex)
                 {
                     _logger.LogError(ex, "Failed to retrieve the available drives.");
+                    Thread.Sleep(PollInterval);
+                    continue;
                 }
 
                 var mountedDrives = currentDrives.Where(c => !knownDrives
@@ -112,7 +116,7 @@ namespace CUERipper.Avalonia.Services
 
                 knownDrives = currentDrives;
 
-                Thread.Sleep(500);
+                Thread.Sleep(PollInterval);
             }
 
             _logger.LogInformation("Drive scanning has been stopped.");
@@ -121,8 +125,8 @@ namespace CUERipper.Avalonia.Services
         private bool IsDriveReady(char drive)
         {
             var fullPath = $"{Linux.CDROM_DEVICE_PATH}{drive}";
-            var fd = Linux.open(fullPath, Linux.O_RDONLY);
 
+            var fd = Linux.open(fullPath, Linux.O_RDONLY | Linux.O_NONBLOCK);
             if (fd == -1)
             {
                 _logger.LogWarning("Drive scanning failed for '{fullPath}' with {errorCode} - {errorMessage}"
@@ -133,16 +137,23 @@ namespace CUERipper.Avalonia.Services
                 return false;
             }
 
-            var result = Linux.ioctl(fd, Linux.CDROM_DRIVE_STATUS);
-            if (result < 0)
+            try
             {
-                _logger.LogWarning("Drive scanning failed for '{fullPath}' with {errorCode} - {errorMessage}"
-                    , fullPath
-                    , Linux.GetErrorCode()
-                    , Linux.GetErrorString());
-            }
+                var result = Linux.ioctl(fd, Linux.CDROM_DRIVE_STATUS);
+                if (result < 0)
+                {
+                    _logger.LogWarning("Drive scanning failed for '{fullPath}' with {errorCode} - {errorMessage}"
+                        , fullPath
+                        , Linux.GetErrorCode()
+                        , Linux.GetErrorString());
+                }
 
-            return result == Linux.CDS_DISC_OK;
+                return result == Linux.CDS_DISC_OK;
+            }
+            finally
+            {
+                Linux.close(fd);
+            }
         }
 
         private bool _disposed;

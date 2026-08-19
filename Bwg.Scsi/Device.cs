@@ -2069,7 +2069,19 @@ namespace Bwg.Scsi
 				m_logger.LogMessage(new UserMessage(UserMessage.Category.Debug, 8, "Bwg.Scsi.Device.ReadCD(" + args + ")"));
 			}
 
-			int size = (4 * 588 +
+			int mainChannelSize = 4 * 588;
+#if NETSTANDARD2_0
+			// Providing the main channel size without requesting the main channel breaks gap
+			// detection on Linux. Do not enable for Windows as TestGaps (SCSIDrive.cs)
+			// relies on specific behavior for testing certain drives.
+			if (mainmode == MainChannelSelection.None
+				&& RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+			{
+				mainChannelSize = 0;
+			}
+#endif
+
+			int size = (mainChannelSize +
 				(submode == SubChannelMode.QOnly ? 16 : submode == SubChannelMode.RWMode ? 96 : 0) +
 				(c2mode == C2ErrorMode.Mode294 ? 294 : c2mode == C2ErrorMode.Mode296 ? 296 : 0)) * (int) length;
 

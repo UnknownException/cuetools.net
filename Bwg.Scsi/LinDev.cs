@@ -55,6 +55,7 @@ namespace Bwg.Scsi
             {
                 Linux.close(_fd);
                 _fd = -1;
+                _name = null;
             }
         }
 
@@ -107,30 +108,24 @@ namespace Bwg.Scsi
                     }
                 case Device.IOCTL_SCSI_PASS_THROUGH_DIRECT:
                     {
-                        var linScsi = new Linux.SG_IO_HDR
-                        {
-                            interface_id = 'S',
-                            dxfer_direction = Linux.SG_DXFER_FROM_DEV
-                        };
-
                         var length = *(ushort*)outbuf;
                         if (length == Device.m_scsi_request_size_32)
                         {
                             var winScsi = (Device.SCSI_PASS_THROUGH_DIRECT32*)outbuf;
-                            linScsi.cmdp = new IntPtr(winScsi->CdbData);
-                            linScsi.cmd_len = winScsi->CdbLength;
-                            linScsi.dxfer_len = winScsi->DataTransferLength;
-                            linScsi.dxferp = winScsi->DataBuffer;
-                            linScsi.mx_sb_len = winScsi->SenseInfoLength;
-                            linScsi.sbp = new IntPtr(winScsi->SenseInfo);
-                            linScsi.timeout = winScsi->TimeOutValue * 1000;
-
-                            var result = Linux.ioctl(_fd, Linux.SG_IO, new IntPtr(&linScsi));
-                            if (result < 0)
+                            var linScsi = new Linux.SG_IO_HDR
                             {
-                                LastError = Marshal.GetLastWin32Error();
-                                return false;
-                            }
+                                interface_id = 'S',
+                                dxfer_direction = TransferDirection(winScsi->DataIn, winScsi->DataTransferLength),
+                                cmdp = new IntPtr(winScsi->CdbData),
+                                cmd_len = winScsi->CdbLength,
+                                dxfer_len = winScsi->DataTransferLength,
+                                dxferp = winScsi->DataBuffer,
+                                mx_sb_len = winScsi->SenseInfoLength,
+                                sbp = new IntPtr(winScsi->SenseInfo),
+                                timeout = winScsi->TimeOutValue * 1000
+                            };
+
+                            if (!SendScsiCommand(ref linScsi)) return false;
 
                             winScsi->ScsiStatus = linScsi.status;
                             return true;
@@ -138,20 +133,20 @@ namespace Bwg.Scsi
                         else if (length == Device.m_scsi_request_size_64)
                         {
                             var winScsi = (Device.SCSI_PASS_THROUGH_DIRECT64*)outbuf;
-                            linScsi.cmdp = new IntPtr(winScsi->CdbData);
-                            linScsi.cmd_len = winScsi->CdbLength;
-                            linScsi.dxfer_len = winScsi->DataTransferLength;
-                            linScsi.dxferp = winScsi->DataBuffer;
-                            linScsi.mx_sb_len = winScsi->SenseInfoLength;
-                            linScsi.sbp = new IntPtr(winScsi->SenseInfo);
-                            linScsi.timeout = winScsi->TimeOutValue * 1000;
-
-                            var result = Linux.ioctl(_fd, Linux.SG_IO, new IntPtr(&linScsi));
-                            if (result < 0)
+                            var linScsi = new Linux.SG_IO_HDR
                             {
-                                LastError = Marshal.GetLastWin32Error();
-                                return false;
-                            }
+                                interface_id = 'S',
+                                dxfer_direction = TransferDirection(winScsi->DataIn, winScsi->DataTransferLength),
+                                cmdp = new IntPtr(winScsi->CdbData),
+                                cmd_len = winScsi->CdbLength,
+                                dxfer_len = winScsi->DataTransferLength,
+                                dxferp = winScsi->DataBuffer,
+                                mx_sb_len = winScsi->SenseInfoLength,
+                                sbp = new IntPtr(winScsi->SenseInfo),
+                                timeout = winScsi->TimeOutValue * 1000
+                            };
+
+                            if (!SendScsiCommand(ref linScsi)) return false;
 
                             winScsi->ScsiStatus = linScsi.status;
                             return true;
@@ -162,9 +157,10 @@ namespace Bwg.Scsi
                 case Device.IOCTL_STORAGE_MEDIA_REMOVAL:
                     {
                         var mediaRemoval = (Device.PREVENT_MEDIA_REMOVAL*)outbuf;
-                        bool shouldLock = mediaRemoval->PreventMediaRemoval == 1;
 
-                        var result = Linux.ioctl(_fd, Linux.CDROM_LOCKDOOR, new IntPtr(&shouldLock));
+                        var lockDoor = new IntPtr(mediaRemoval->PreventMediaRemoval == 1 ? 1 : 0);
+
+                        var result = Linux.ioctl(_fd, Linux.CDROM_LOCKDOOR, lockDoor);
                         if (result < 0)
                         {
                             LastError = Marshal.GetLastWin32Error();
@@ -176,6 +172,42 @@ namespace Bwg.Scsi
                 default:
                     throw new NotImplementedException($"Unknown SCSI instruction {code}");
             }
+        }
+
+        private static int TransferDirection(byte readDataFromDevice, uint transferLength)
+        {
+            if (transferLength == 0) return Linux.SG_DXFER_NONE;
+
+            switch (readDataFromDevice)
+            {
+                case 0: return Linux.SG_DXFER_TO_DEV;
+                case 1: return Linux.SG_DXFER_FROM_DEV;
+                default: throw new NotImplementedException(
+                    $"Unsupported TransferDirection value {readDataFromDevice}");
+            }
+        }
+
+        private bool SendScsiCommand(ref Linux.SG_IO_HDR header)
+        {
+            int result;
+            fixed (Linux.SG_IO_HDR* headerPtr = &header)
+            {
+                result = Linux.ioctl(_fd, Linux.SG_IO, new IntPtr(headerPtr));
+            }
+
+            if (result < 0)
+            {
+                LastError = Marshal.GetLastWin32Error();
+                return false;
+            }
+
+            if (header.host_status != Linux.DID_OK)
+            {
+                LastError = Linux.EIO;
+                return false;
+            }
+
+            return true;
         }
 
         public string ErrorCodeToString(int error)

@@ -424,6 +424,8 @@ namespace CUERipper.Avalonia.Services
                 }
                 finally
                 {
+                    _logger.LogInformation("Read command: {ReadCommand}", audioSource.CurrentReadCommand);
+
                     cueSheet.Close();
 
                     if (_config.DisableEjectDisc)

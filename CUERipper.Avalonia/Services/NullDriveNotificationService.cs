@@ -25,7 +25,7 @@ using System.Threading;
 
 namespace CUERipper.Avalonia.Services
 {
-    public class NullDriveNotificationService : IDriveNotificationService, IDisposable
+    public sealed class NullDriveNotificationService : IDriveNotificationService, IDisposable
     {
         private readonly Thread _thread;
         private volatile bool _requestExit;
