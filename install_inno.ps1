@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$innoUri = "https://files.jrsoftware.org/is/6/innosetup-6.4.2.exe"
+$innoUri = "https://github.com/jrsoftware/issrc/releases/download/is-6_4_2/innosetup-6.4.2.exe"
 $executable = "innosetup-6.4.2.exe"
 $expectedHash = "238e2cf82c212a3879a050e02d787283c54bcb72d5cb6070830942de56627d5b"
 
