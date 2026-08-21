@@ -220,7 +220,8 @@
 
 					<Separator Margin="0, 25" Opacity="0.1"/>
 
-					<uc:DriveSettingSection Name="driveSettingSection" />
+					<uc:DriveSettingSection Name="driveSettingSection"
+										   DataContext="{Binding DriveSettings}" />
 
 					<Separator Margin="0, 25" Opacity="0.1"/>
 

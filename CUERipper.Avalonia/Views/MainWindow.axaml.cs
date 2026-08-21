@@ -115,7 +115,6 @@ namespace CUERipper.Avalonia.Views
             DataContextChanged += OnDataContextChanged;
             Closing += OnWindowClosing;
 
-            driveSettingSection.Init(serviceProvider);
             coverViewer.Init(serviceProvider);
             trackGrid.Init(serviceProvider);
             metaGrid.Init(serviceProvider);
@@ -236,10 +235,10 @@ namespace CUERipper.Avalonia.Views
 
             var ripSettings = new RipSettings
             {
-                DriveOffset = driveSettingSection.ViewModel.DriveOffset
-                , C2ErrorModeSetting = (DriveC2ErrorModeSetting)Enum.Parse(typeof(DriveC2ErrorModeSetting), driveSettingSection.ViewModel.SelectedC2ErrorMode, true)
-                , CorrectionQuality = driveSettingSection.ViewModel.SelectedSecureMode
-                , TestAndCopy = driveSettingSection.ViewModel.TestAndCopyEnabled
+                DriveOffset = ViewModel.DriveSettings.DriveOffset
+                , C2ErrorModeSetting = (DriveC2ErrorModeSetting)Enum.Parse(typeof(DriveC2ErrorModeSetting), ViewModel.DriveSettings.SelectedC2ErrorMode, true)
+                , CorrectionQuality = ViewModel.DriveSettings.SelectedSecureMode
+                , TestAndCopy = ViewModel.DriveSettings.TestAndCopyEnabled
                 , AlbumCoverUri = albumCoverUri
                 , EncodingConfiguration = GetEncodingConfigurationFromTabControl()
             };

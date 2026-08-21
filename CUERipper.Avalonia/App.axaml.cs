@@ -28,6 +28,7 @@ using CUERipper.Avalonia.Services;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.Utilities;
 using CUERipper.Avalonia.ViewModels;
+using CUERipper.Avalonia.ViewModels.UserControls;
 using CUERipper.Avalonia.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -115,6 +116,7 @@ namespace CUERipper.Avalonia
 
             services.AddTransient<MainWindow>();
             services.AddTransient<MainWindowViewModel>();
+            services.AddTransient<DriveSettingSectionViewModel>();
             services.AddSingleton<IIconService, IconService>();
 
             services.AddLogging(builder =>

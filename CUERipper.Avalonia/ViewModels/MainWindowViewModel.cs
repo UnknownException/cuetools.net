@@ -22,7 +22,7 @@ using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
-using CUERipper.Avalonia.ViewModels.Bindings;
+using CUERipper.Avalonia.ViewModels.UserControls;
 using Microsoft.Extensions.Localization;
 using System;
 using System.Collections.ObjectModel;
@@ -102,6 +102,8 @@ namespace CUERipper.Avalonia.ViewModels
         public string HeaderTracks { get => _localizer["Main:Tracks"]; }
         public string HeaderMetadata { get => _localizer["Main:Metadata"]; }
 
+        public DriveSettingSectionViewModel DriveSettings { get; }
+
         private readonly ICUEConfigFacade _config;
         private readonly ICUERipperService _ripperService;
         private readonly ICUEMetaService _metaService;
@@ -111,13 +113,16 @@ namespace CUERipper.Avalonia.ViewModels
             , ICUERipperService ripperService
             , ICUEMetaService metaService
             , IStringLocalizer<Language> stringLocalizer
-            , IIconService iconService)
+            , IIconService iconService
+            , DriveSettingSectionViewModel driveSettings)
         {
             _config = config;
             _ripperService = ripperService;
             _metaService = metaService;
             _localizer = stringLocalizer;
             _iconService = iconService;
+
+            DriveSettings = driveSettings;
         }
 
         public void RefreshAlbums()

@@ -31,14 +31,15 @@
 			MinWidth="0"
 			Margin="5"/>
 		<Button Grid.Row="0" Grid.Column="2"
-			Name="buttonResetDriveSettings"
-			Background="Transparent">
-			<ToolTip.Tip>
-				Accidentaly broke something? Don't worry, just reset it!
-			</ToolTip.Tip>
+			Command="{Binding ResetDriveSettingsCommand}"
+			Background="Transparent"
+			ToolTip.Tip="{Binding ToolTipResetDriveSettings}">
+			<Image Source="{Binding IconResetDriveSettings}"
+				Width="18"
+				Height="18"/>
 		</Button>
 		<CheckBox Grid.Row="1" Grid.Column="0"
-			Content="Test and Copy"
+			Content="{Binding TextTestAndCopy}"
 			IsChecked="{Binding TestAndCopyEnabled}"
 			Margin="5,5,5,0"/>
 		<Slider Grid.Row="1" Grid.Column="1"
@@ -47,11 +48,8 @@
 				Value="{Binding SelectedSecureMode, Mode=TwoWay}"
 				TickFrequency="1"
 				Margin="5,5,5,0"
-				IsSnapToTickEnabled="True">
-			<ToolTip.Tip>
-				Burst is the least secure ripping option, paranoid the most. Only consider using paranoid when a previous ripping attempt was not accurate.
-			</ToolTip.Tip>
-		</Slider>
+				IsSnapToTickEnabled="True"
+				ToolTip.Tip="{Binding ToolTipSecureMode}"/>
 		<TextBlock Grid.Row="2" Grid.Column="1"
 			Text="{Binding SelectedSecureModeText}"
 			HorizontalAlignment="Center"/>

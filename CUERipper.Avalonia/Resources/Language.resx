@@ -276,4 +276,13 @@
   <data name="Warning:DirectoryExists" xml:space="preserve">
     <value>The directory already exists</value>
   </data>
+  <data name="DriveSettings:TestAndCopy" xml:space="preserve">
+    <value>Test and Copy</value>
+  </data>
+  <data name="DriveSettings:ToolTipReset" xml:space="preserve">
+    <value>Accidentally broke something? Don't worry, just reset it!</value>
+  </data>
+  <data name="DriveSettings:ToolTipSecureMode" xml:space="preserve">
+    <value>Burst is the least secure ripping option, paranoid the most. Only consider using paranoid when a previous ripping attempt was not accurate.</value>
+  </data>
 </root>
