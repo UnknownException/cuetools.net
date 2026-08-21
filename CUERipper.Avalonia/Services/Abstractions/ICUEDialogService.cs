@@ -16,14 +16,14 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Controls;
+using CUETools.Codecs;
+using System.Threading.Tasks;
 
-namespace CUERipper.Avalonia.Views.UserControls;
-
-public partial class EncodingSection : UserControl
+namespace CUERipper.Avalonia.Services.Abstractions
 {
-    public EncodingSection()
+    public interface ICUEDialogService
     {
-        InitializeComponent();
+        Task ShowOptionsAsync();
+        Task ShowEncoderOptionsAsync(IAudioEncoderSettings encoderSettings);
     }
 }

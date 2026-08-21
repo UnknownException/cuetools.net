@@ -45,6 +45,10 @@ namespace CUERipper.Avalonia
         ];
         public const int MaxPathFormats = 10; // Based on the original CUERipper limit
 
+        public const int MinEncodingTabs = 1;
+        public const int MaxEncodingTabs = 7;
+        public const string FirstEncodingTabHeader = "*";
+
         public const string ApplicationShortName = "CUERipper";
         public const string ApplicationName = $"{ApplicationShortName}.Avalonia {CUESheet.CUEToolsVersion}";
 

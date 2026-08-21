@@ -103,6 +103,7 @@ namespace CUERipper.Avalonia.ViewModels
         public string HeaderMetadata { get => _localizer["Main:Metadata"]; }
 
         public DriveSettingSectionViewModel DriveSettings { get; }
+        public EncodingTabContainerViewModel EncodingTabs { get; }
 
         private readonly ICUEConfigFacade _config;
         private readonly ICUERipperService _ripperService;
@@ -114,7 +115,8 @@ namespace CUERipper.Avalonia.ViewModels
             , ICUEMetaService metaService
             , IStringLocalizer<Language> stringLocalizer
             , IIconService iconService
-            , DriveSettingSectionViewModel driveSettings)
+            , DriveSettingSectionViewModel driveSettings
+            , EncodingTabContainerViewModel encodingTabs)
         {
             _config = config;
             _ripperService = ripperService;
@@ -123,6 +125,7 @@ namespace CUERipper.Avalonia.ViewModels
             _iconService = iconService;
 
             DriveSettings = driveSettings;
+            EncodingTabs = encodingTabs;
         }
 
         public void RefreshAlbums()

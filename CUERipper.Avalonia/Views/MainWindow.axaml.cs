@@ -19,7 +19,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using CUERipper.Avalonia.Compatibility;
 using CUERipper.Avalonia.Configuration;
@@ -36,7 +35,6 @@ using CUETools.Processor;
 using CUETools.Ripper;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -139,7 +137,6 @@ namespace CUERipper.Avalonia.Views
             buttonUpdate.Content = BindImage(AppIcon.New);
             buttonUpdate.IsVisible = false;
 
-            tabControlEncoding.SelectionChanged += OnEncodingTabChanged;
             coverViewer.ViewModel.PropertyChanged += OnCoverViewerPropertyChanged;
             metaGrid.ViewModel.PropertyChanged += OnMetaGridPropertyChanged;
 
@@ -165,7 +162,7 @@ namespace CUERipper.Avalonia.Views
 
         private async Task InitializeApplicationAsync()
         {
-            InitializeEncodingTab();
+            ViewModel.EncodingTabs.InitializeTabs();
 
             coverViewer.Clear();
             trackGrid.Clear();
@@ -240,7 +237,7 @@ namespace CUERipper.Avalonia.Views
                 , CorrectionQuality = ViewModel.DriveSettings.SelectedSecureMode
                 , TestAndCopy = ViewModel.DriveSettings.TestAndCopyEnabled
                 , AlbumCoverUri = albumCoverUri
-                , EncodingConfiguration = GetEncodingConfigurationFromTabControl()
+                , EncodingConfiguration = ViewModel.EncodingTabs.GetEncodingConfigurations()
             };
 
             SetUI(UIMode.Ripping);
@@ -309,7 +306,7 @@ namespace CUERipper.Avalonia.Views
             GetAlbumReleaseControls()
                 .ForEach(c => c.IsEnabled = uiMode != UIMode.Ripping && uiMode != UIMode.Init);
 
-            tabControlEncoding.IsEnabled = uiMode != UIMode.Ripping;
+            encodingTabContainer.IsEnabled = uiMode != UIMode.Ripping;
 
             driveSettingSection.IsEnabled = uiMode != UIMode.Ripping && uiMode != UIMode.Init;
 
@@ -514,104 +511,6 @@ namespace CUERipper.Avalonia.Views
             if (ViewModel.SplitPaneOpen) args.Cancel = true;
         }
 
-        private TabItem CreateEncodingTabItem(EncodingConfiguration? encodingConfig)
-        {
-            var control = new EncodingSection();
-            control.Init(_serviceProvider);
-
-            if (encodingConfig != null)
-            {
-                control.ViewModel.SetConfiguration(encodingConfig);
-            }
-
-            var tabItem = new TabItem
-            {
-                Header = tabControlEncoding.Items.Count - 2
-                , Content = control
-                , FontSize = 20
-            };
-
-            if ((int)tabItem.Header == 0) tabItem.Header = "*";
-
-            return tabItem;
-        }
-
-        private void OnEncodingTabCollectionChanged()
-        {
-            tabItemEncodingAdd.IsEnabled = tabControlEncoding.Items.Count < 9;
-            tabItemEncodingRemove.IsEnabled = tabControlEncoding.Items.Count > 3;
-        }
-
-        private void OnEncodingTabChanged(object? sender, SelectionChangedEventArgs e)
-        {
-            if (tabControlEncoding.SelectedIndex == tabControlEncoding.Items.Count - 2)
-            {
-                var tabItem = CreateEncodingTabItem(null);
-                tabControlEncoding.Items.Insert(tabControlEncoding.Items.Count - 2, tabItem);
-                tabControlEncoding.SelectedIndex = tabControlEncoding.Items.Count - 3;
-
-                OnEncodingTabCollectionChanged();
-
-                e.Handled = true;
-            }
-            else if(tabControlEncoding.SelectedIndex == tabControlEncoding.Items.Count - 1)
-            {
-                tabControlEncoding.SelectedIndex = tabControlEncoding.Items.Count - 4;
-                tabControlEncoding.Items.RemoveAt(tabControlEncoding.Items.Count - 3);
-
-                OnEncodingTabCollectionChanged();
-
-                e.Handled = true;
-            }
-        }
-
-        private void InitializeEncodingTab()
-        {
-            // Check if already initialized. Skip if it is.
-            if (tabControlEncoding.Items.Count != 2) return;
-
-            EncodingConfiguration[] encodingConfig = [];
-            try
-            {
-                if (!string.IsNullOrWhiteSpace(_config.EncodingConfiguration))
-                {
-                    encodingConfig = JsonConvert.DeserializeObject<EncodingConfiguration[]>(_config.EncodingConfiguration)
-                        ?? encodingConfig;
-                }
-            }
-            catch(Exception ex)
-            {
-                _logger.LogError(ex, "Failed to parse encoding configuration: {Config}", _config.EncodingConfiguration);
-            }
-
-            if (encodingConfig.Length == 0)
-            {
-                var tabItem = CreateEncodingTabItem(null);
-                tabControlEncoding.Items.Insert(0, tabItem);
-                tabControlEncoding.SelectedIndex = 0;
-            }
-            else
-            {
-                for (int i = 0; i < encodingConfig.Length; ++i)
-                {
-                    // Skip the first one, read it from the shared settings (CUERipper old)
-                    var tabItem = CreateEncodingTabItem(i == 0 ? null : encodingConfig[i]);
-                    tabControlEncoding.Items.Insert(i, tabItem);
-                }
-
-                tabControlEncoding.SelectedIndex = 0;
-            }
-
-            OnEncodingTabCollectionChanged();
-        }
-
-        private EncodingConfiguration[] GetEncodingConfigurationFromTabControl()
-            => tabControlEncoding.Items
-                .Select(i => (i as TabItem)?.FindLogicalDescendantOfType<EncodingSection>())
-                .Select(i => i?.ViewModel.GetConfiguration())
-                .OfType<EncodingConfiguration>()
-                .ToArray();
-
         private async void OnWindowClosing(object? sender, WindowClosingEventArgs e)
         {
             if (_rippingTask != null && !_rippingTask.IsCompleted)
@@ -635,7 +534,7 @@ namespace CUERipper.Avalonia.Views
             }
             else
             {
-                _config.EncodingConfiguration = JsonConvert.SerializeObject(GetEncodingConfigurationFromTabControl());
+                ViewModel.EncodingTabs.PersistTabs();
             }
         }
 

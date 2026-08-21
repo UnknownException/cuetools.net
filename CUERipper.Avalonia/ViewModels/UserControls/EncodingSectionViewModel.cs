@@ -16,15 +16,19 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Services.Abstractions;
 using CUETools.Processor;
 using Microsoft.Extensions.Localization;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.ViewModels.UserControls
 {
@@ -96,14 +100,37 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
 
         public string ToolTipCompression { get => _localizer["Encoding:ToolTipCompression"]; }
         public string ToolTipCUEStyle { get => _localizer["Encoding:ToolTipCUEStyle"]; }
+        public string ToolTipSettings { get => _localizer["Encoding:ToolTipSettings"]; }
+        public string ToolTipEncoderSettings { get => _localizer["Encoding:ToolTipEncoderSettings"]; }
+
+        public Bitmap? IconSettings { get; }
+        public Bitmap? IconEncoderSettings { get; }
+
+        [ObservableProperty]
+        private string sectionHeader = string.Empty;
 
         private readonly ICUEConfigFacade _config;
+        private readonly ICUEDialogService _dialogService;
         private readonly IStringLocalizer _localizer;
         public EncodingSectionViewModel(ICUEConfigFacade config
+            , ICUEDialogService dialogService
+            , IIconService iconService
             , IStringLocalizer<Language> localizer)
         {
             _config = config;
+            _dialogService = dialogService;
             _localizer = localizer;
+
+            IconSettings = iconService.GetIcon(AppIcon.Cog);
+            IconEncoderSettings = iconService.GetIcon(AppIcon.Bolt);
+
+            SelectedCompression = _config.OutputCompression == AudioEncoderType.Lossless
+                ? _localizer["Encoding:Lossless"]
+                : _localizer["Encoding:Lossy"];
+
+            SelectedCUEStyle = _config.CUEStyleIndex >= 0 && _config.CUEStyleIndex < CUEStyle.Count
+                ? CUEStyle[_config.CUEStyleIndex]
+                : CUEStyle[CUEStyle.Count - 1];
         }
 
         public bool IsLossless()
@@ -179,17 +206,23 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             SelectedEncoderModeText = encoderMode;
         }
 
-        internal bool SetInitState()
+        [RelayCommand]
+        private async Task OpenSettingsAsync()
+            => await _dialogService.ShowOptionsAsync();
+
+        [RelayCommand]
+        private async Task OpenEncoderSettingsAsync()
         {
-            SelectedCompression = _config.OutputCompression == AudioEncoderType.Lossless
-                ? _localizer["Encoding:Lossless"]
-                : _localizer["Encoding:Lossy"];
+            var encoderSettings = _config.Encoders
+                .Where(e => string.Compare(e.Name, SelectedEncoder, true) == 0
+                    && string.Compare(e.Extension, SelectedEncoding, true) == 0)
+                .Select(e => e.Settings)
+                .FirstOrDefault();
 
-            SelectedCUEStyle = _config.CUEStyleIndex >= 0 && _config.CUEStyleIndex < CUEStyle.Count
-                ? CUEStyle[_config.CUEStyleIndex]
-                : CUEStyle[CUEStyle.Count - 1];
-
-            return true;
+            if (encoderSettings != null)
+            {
+                await _dialogService.ShowEncoderOptionsAsync(encoderSettings);
+            }
         }
 
         public EncodingConfiguration? GetConfiguration()

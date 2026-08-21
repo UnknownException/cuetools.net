@@ -276,6 +276,12 @@
   <data name="Warning:DirectoryExists" xml:space="preserve">
     <value>The directory already exists</value>
   </data>
+  <data name="Encoding:ToolTipSettings" xml:space="preserve">
+    <value>CUETools advanced settings.</value>
+  </data>
+  <data name="Encoding:ToolTipEncoderSettings" xml:space="preserve">
+    <value>Settings related to the selected encoder.</value>
+  </data>
   <data name="DriveSettings:TestAndCopy" xml:space="preserve">
     <value>Test and Copy</value>
   </data>

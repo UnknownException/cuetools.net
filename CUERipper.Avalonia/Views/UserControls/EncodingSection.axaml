@@ -31,11 +31,12 @@
 					Margin="5,5"
 					ToolTip.Tip="{Binding ToolTipCUEStyle}" />
 		<Button Grid.Row="0" Grid.Column="2"
-				Name="buttonSettings"
-				Background="Transparent">
-			<ToolTip.Tip>
-				CUETools advanced settings.
-			</ToolTip.Tip>
+				Command="{Binding OpenSettingsCommand}"
+				Background="Transparent"
+				ToolTip.Tip="{Binding ToolTipSettings}">
+			<Image Source="{Binding IconSettings}"
+				   Width="18"
+				   Height="18"/>
 		</Button>
 		<ComboBox Grid.Row="1" Grid.Column="0"
 					ItemsSource="{Binding Encoding}"
@@ -48,11 +49,12 @@
 					HorizontalAlignment="Stretch"
 					Margin="5,5"/>
 		<Button Grid.Row="1" Grid.Column="2"
-				Name="buttonEncoderSettings"
-				Background="Transparent">
-			<ToolTip.Tip>
-				Settings related to the selected encoder.
-			</ToolTip.Tip>
+				Command="{Binding OpenEncoderSettingsCommand}"
+				Background="Transparent"
+				ToolTip.Tip="{Binding ToolTipEncoderSettings}">
+			<Image Source="{Binding IconEncoderSettings}"
+				   Width="18"
+				   Height="18"/>
 		</Button>
 		<Slider Grid.Row="2" Grid.ColumnSpan="3"
 				Minimum="0"

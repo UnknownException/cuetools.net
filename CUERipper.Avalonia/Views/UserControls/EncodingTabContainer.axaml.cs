@@ -20,9 +20,9 @@ using Avalonia.Controls;
 
 namespace CUERipper.Avalonia.Views.UserControls;
 
-public partial class EncodingSection : UserControl
+public partial class EncodingTabContainer : UserControl
 {
-    public EncodingSection()
+    public EncodingTabContainer()
     {
         InitializeComponent();
     }

@@ -206,17 +206,8 @@
 
 					<Separator Margin="0, 25, 0, 10" Opacity="0.1"/>
 
-					<TabControl Name="tabControlEncoding" Padding="0">
-						<TabItem Name="tabItemEncodingAdd"
-								 AutomationProperties.Name="Add album encoding"
-								 Header="+" 
-								 FontSize="20" />
-						<TabItem Name="tabItemEncodingRemove" 
-								 AutomationProperties.Name="Remove last album encoding"
-								 Header="-" 
-								 FontSize="20" 
-								 IsEnabled="False"/>
-					</TabControl>
+					<uc:EncodingTabContainer Name="encodingTabContainer"
+											 DataContext="{Binding EncodingTabs}" />
 
 					<Separator Margin="0, 25" Opacity="0.1"/>
 

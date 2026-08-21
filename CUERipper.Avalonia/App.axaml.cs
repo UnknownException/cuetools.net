@@ -117,6 +117,12 @@ namespace CUERipper.Avalonia
             services.AddTransient<MainWindow>();
             services.AddTransient<MainWindowViewModel>();
             services.AddTransient<DriveSettingSectionViewModel>();
+            services.AddTransient<EncodingTabContainerViewModel>();
+            services.AddTransient<EncodingSectionViewModel>();
+            services.AddTransient<Func<EncodingSectionViewModel>>(sp
+                => () => sp.GetRequiredService<EncodingSectionViewModel>());
+
+            services.AddTransient<ICUEDialogService, CUEDialogService>();
             services.AddSingleton<IIconService, IconService>();
 
             services.AddLogging(builder =>
