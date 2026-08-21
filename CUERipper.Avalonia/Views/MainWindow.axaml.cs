@@ -229,14 +229,6 @@ namespace CUERipper.Avalonia.Views
                 return;
             }
 
-            SetUI(UIMode.Ripping);
-
-            if (!_rippingCts.TryReset())
-            {
-                _rippingCts.Dispose();
-                _rippingCts = new();
-            }
-
             _metaService.FinalizeMetadata();
 
             lblStatus.Text = _localizer["Status:DownloadingAlbumCover"];
@@ -252,7 +244,15 @@ namespace CUERipper.Avalonia.Views
                 , EncodingConfiguration = GetEncodingConfigurationFromTabControl()
             };
 
-            _rippingTask = _ripperService.RipAudioTracks(ripSettings, _rippingCts.Token);
+            SetUI(UIMode.Ripping);
+
+            if (!_rippingCts.TryReset())
+            {
+                _rippingCts.Dispose();
+                _rippingCts = new();
+            }
+
+            _rippingTask = _ripperService.StartRipProcess(ripSettings, _rippingCts.Token);
         }
 
         private async void OnAbortClicked(object? sender, EventArgs e)

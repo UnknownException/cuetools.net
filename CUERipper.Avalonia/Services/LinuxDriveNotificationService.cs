@@ -21,8 +21,8 @@
 // As a temporary solution, I've implemented a quick workaround to ensure the drive notification works.
 // Further investigation needed...
 
+using CUERipper.Avalonia.Services.Abstractions;
 using CUETools.Interop;
-using CUETools.Ripper;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -52,10 +52,13 @@ namespace CUERipper.Avalonia.Services
             _onDriveMounted = onDriveMounted;
         }
 
+        private readonly ICDDriveEnumerator _driveEnumerator;
         private readonly ILogger _logger;
 
-        public LinuxDriveNotificationService(ILogger<LinuxDriveNotificationService> logger)
+        public LinuxDriveNotificationService(ICDDriveEnumerator driveEnumerator
+            , ILogger<LinuxDriveNotificationService> logger)
         {
+            _driveEnumerator = driveEnumerator;
             _logger = logger;
             _thread = new Thread(ScanDrives)
             {
@@ -75,7 +78,7 @@ namespace CUERipper.Avalonia.Services
                 Dictionary<char, bool> currentDrives = [];
                 try
                 {
-                    currentDrives = CDDrivesList.DrivesAvailable()
+                    currentDrives = _driveEnumerator.DrivesAvailable()
                         .Select(d => new { Drive = d, IsReady = IsDriveReady(d) })
                         .ToDictionary(item => item.Drive, item => item.IsReady);
                 }

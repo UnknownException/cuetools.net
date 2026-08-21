@@ -68,31 +68,33 @@ namespace CUERipper.Avalonia.Services
         public event EventHandler<DirectoryConflictEventArgs>? OnDirectoryConflict;
 
         private readonly ICUEConfigFacade _config;
+        private readonly ICDRipperFactory _ripperFactory;
+        private readonly ICDDriveEnumerator _driveEnumerator;
+        private readonly ICUEMetadataStore _metadataStore;
         private readonly IStringLocalizer _localizer;
         private readonly ILogger _logger;
+
         public CUERipperService(ICUEConfigFacade config
+            , ICDRipperFactory ripperFactory
+            , ICDDriveEnumerator driveEnumerator
+            , ICUEMetadataStore metadataStore
             , IStringLocalizer<Language> stringLocalizer
             , ILogger<CUERipperService> logger)
         {
             _config = config;
+            _ripperFactory = ripperFactory;
+            _driveEnumerator = driveEnumerator;
+            _metadataStore = metadataStore;
             _localizer = stringLocalizer;
             _logger = logger;
         }
 
         private ICDRipper? CreateCDRipperInstance()
         {
-            const string failedToCreateInstance = "Failed to create an instance of CD ripper, is the library missing?";
-
-            if (CUEProcessorPlugins.ripper == null)
-            {
-                _logger.LogError(failedToCreateInstance);
-                return null;
-            }
-
-            var cdRipper = Activator.CreateInstance(CUEProcessorPlugins.ripper) as ICDRipper;
+            var cdRipper = _ripperFactory.Create();
             if (cdRipper == null)
             {
-                _logger.LogError(failedToCreateInstance);
+                _logger.LogError("Failed to create an instance of CD ripper, is the library missing?");
             }
 
             return cdRipper;
@@ -138,7 +140,7 @@ namespace CUERipper.Avalonia.Services
         {
             var result = new Dictionary<char, DriveInformation>();
 
-            var drives = CDDrivesList.DrivesAvailable();
+            var drives = _driveEnumerator.DrivesAvailable();
             foreach (var drive in drives)
             {
                 result.Add(drive, QueryDriveName(drive));
@@ -220,7 +222,7 @@ namespace CUERipper.Avalonia.Services
                 ? driveOffset
                 : 0;
 
-        public Task RipAudioTracks(RipSettings ripSettings, CancellationToken ct)
+        public Task StartRipProcess(RipSettings ripSettings, CancellationToken ct)
         {
             var selectedDrive = SelectedDrive;
 
@@ -228,39 +230,73 @@ namespace CUERipper.Avalonia.Services
             {
                 _logger.LogInformation("Rip task has been started.");
 
-                if (ripSettings.EncodingConfiguration.None())
+                var finishReported = false;
+                void Finish(bool success, string status, string popupContent)
                 {
-                    _logger.LogError("Ripping has failed! No encoding configuration found");
+                    if (finishReported) return;
+                    finishReported = true;
 
-                    OnFinish?.Invoke(this, new(false, _localizer["Status:RipFail"], _localizer["Error:NoEncodingFound"]));
-                    return;
+                    OnFinish?.Invoke(this, new(success, status, popupContent));
                 }
 
-                var initialEncoding = ripSettings.EncodingConfiguration[0];
-
-                if (ripSettings.EncodingConfiguration.Length > 1
-                    && !initialEncoding.IsLossless)
+                try
                 {
-                    _logger.LogError("Ripping has failed! First encoding must be lossless");
-
-                    OnFinish?.Invoke(this, new(false, _localizer["Status:RipFail"], _localizer["Error:MultiEncodingNotLossless"]));
-                    return;
+                    Rip(selectedDrive, ripSettings, Finish, ct);
                 }
-
-                SetEncodingVariables(initialEncoding);
-
-                using var audioSource = CreateCDRipper(selectedDrive, ripSettings, ct);
-                if (audioSource == null)
+                catch (StopException)
                 {
-                    _logger.LogError("Ripping has failed! Couldn't open audio source on selected drive {selectedDrive}:\\.", selectedDrive);
-
-                    OnFinish?.Invoke(this, new(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedNoAccessDrive"]));
-                    return;
+                    _logger.LogInformation("Ripping has been stopped by user.");
+                    Finish(false, _localizer["Status:RipFailUser"], string.Empty);
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Ripping has failed! Unexpected error occurred.");
+                    Finish(false, _localizer["Status:RipFail"], $"{_localizer["Error:Unexpected"]} {ex.Message}");
+                }                
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            // Do not let this task be cancelled by the cancellation token, let it exit cleanly.
+        }
 
-                var cueSheet = new CUESheet(_config.ToCUEConfig());
-                ct.Register(() => cueSheet.Stop());
+        private void Rip(char selectedDrive
+            , RipSettings settings
+            , Action<bool, string, string> finish
+            , CancellationToken ct)
+        {
+            if (settings.EncodingConfiguration.None())
+            {
+                _logger.LogError("Ripping has failed! No encoding configuration found");
 
+                finish(false, _localizer["Status:RipFail"], _localizer["Error:NoEncodingFound"]);
+                return;
+            }
+
+            var initialEncoding = settings.EncodingConfiguration[0];
+
+            if (settings.EncodingConfiguration.Length > 1
+                && !initialEncoding.IsLossless)
+            {
+                _logger.LogError("Ripping has failed! First encoding must be lossless");
+
+                finish(false, _localizer["Status:RipFail"], _localizer["Error:MultiEncodingNotLossless"]);
+                return;
+            }
+
+            SetEncodingVariables(initialEncoding);
+
+            using var audioSource = CreateCDRipper(selectedDrive, settings, ct);
+            if (audioSource == null)
+            {
+                _logger.LogError("Ripping has failed! Couldn't open audio source on selected drive {selectedDrive}:\\.", selectedDrive);
+
+                finish(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedNoAccessDrive"]);
+                return;
+            }
+
+            var cueSheet = new CUESheet(_config.ToCUEConfig());
+            var stopRegistration = ct.Register(() => cueSheet.Stop());
+
+            try
+            {
                 cueSheet.OpenCD(audioSource);
                 cueSheet.Action = CUEAction.Encode;
                 cueSheet.UseCUEToolsDB(Constants.ApplicationName, audioSource.ARName, false, _config.MetadataSearch);
@@ -268,12 +304,10 @@ namespace CUERipper.Avalonia.Services
 
                 General.SetCUELine(cueSheet.Attributes, "REM", "DISCID", AccurateRipVerify.CalculateCDDBId(audioSource.TOC), false);
 
-                CUEMetadataEntry? metadataEntry = GetMetadataEntry(cueSheet, audioSource.TOC, ripSettings.AlbumCoverUri);
+                CUEMetadataEntry? metadataEntry = GetMetadataEntry(cueSheet, audioSource.TOC, settings.AlbumCoverUri);
                 if (metadataEntry == null)
                 {
-                    OnFinish?.Invoke(this, new(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedMetadata"]));
-
-                    cueSheet.Close();
+                    finish(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedMetadata"]);
                     return;
                 }
 
@@ -296,9 +330,7 @@ namespace CUERipper.Avalonia.Services
                 {
                     _logger.LogError("Ripping has failed! Couldn't generate the output path.");
 
-                    OnFinish?.Invoke(this, new(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedOutputPath"]));
-
-                    cueSheet.Close();
+                    finish(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedOutputPath"]);
                     return;
                 }
 
@@ -312,11 +344,8 @@ namespace CUERipper.Avalonia.Services
                     {
                         _logger.LogError("Ripping has failed! Couldn't generate the output path. Directory already exists.");
 
-                        OnFinish?.Invoke(this, new(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedOutputPath"]));
-
-                        cueSheet.Close();
+                        finish(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedOutputPath"]);
                         return;
-
                     }
                 }
 
@@ -327,120 +356,121 @@ namespace CUERipper.Avalonia.Services
 
                 cueSheet.GenerateFilenames(encoderType, encodingFormat, pathOut);
 
-                CopyRawAlbumCoverFromCache(ripSettings.AlbumCoverUri, pathOut);
+                CopyRawAlbumCoverFromCache(settings.AlbumCoverUri, pathOut);
 
-                try
+                if (_config.DisableEjectDisc)
                 {
-                    if (_config.DisableEjectDisc)
-                    {
-                        _logger.LogInformation("Disabling disc ejecting.");
-                        audioSource.DisableEjectDisc(true);
-                    }
+                    _logger.LogInformation("Disabling disc ejecting.");
+                    audioSource.DisableEjectDisc(true);
+                }
 
-                    if (ripSettings.TestAndCopy)
-                    {
-                        _logger.LogInformation("Testing before copy.");
-                        cueSheet.TestBeforeCopy();
-                    }
-                    else
-                    {
-                        cueSheet.ArTestVerify = null;
-                    }
+                if (settings.TestAndCopy)
+                {
+                    _logger.LogInformation("Testing before copy.");
+                    cueSheet.TestBeforeCopy();
+                }
+                else
+                {
+                    cueSheet.ArTestVerify = null;
+                }
 
-                    _logger.LogInformation("Ripping has started.");
+                _logger.LogInformation("Ripping has started.");
 
-                    cueSheet.Go();
+                cueSheet.Go();
 
-                    _logger.LogInformation("Ripping has finished.");
+                _logger.LogInformation("Ripping has finished.");
 
 #if !DEBUG
-                    _logger.LogInformation("Submitting to CUETools Database.");
+                _logger.LogInformation("Submitting to CUETools Database.");
 
-                    cueSheet.CTDB.Submit(
-                        (int)cueSheet.ArVerify.WorstConfidence() + 1,
-                        audioSource.CorrectionQuality == 0 ? 0 :
-                        (int)(100 * (1.0 - Math.Log(audioSource.FailedSectors.PopulationCount() + 1) / Math.Log(audioSource.TOC.AudioLength + 1))),
-                        cueSheet.Metadata.Artist,
-                        cueSheet.Metadata.Title,
-                        cueSheet.TOC.Barcode);
+                cueSheet.CTDB.Submit(
+                    (int)cueSheet.ArVerify.WorstConfidence() + 1,
+                    audioSource.CorrectionQuality == 0 ? 0 :
+                    (int)(100 * (1.0 - Math.Log(audioSource.FailedSectors.PopulationCount() + 1) / Math.Log(audioSource.TOC.AudioLength + 1))),
+                    cueSheet.Metadata.Artist,
+                    cueSheet.Metadata.Title,
+                    cueSheet.TOC.Barcode);
 #endif
 
-                    bool recoveryPossible = false;
-                    if (ripSettings.EncodingConfiguration[0].IsLossless
-                        && cueSheet.CTDB.QueryExceptionStatus == WebExceptionStatus.Success
-                        && audioSource.FailedSectors.PopulationCount() != 0)
+                bool recoveryPossible = false;
+                if (settings.EncodingConfiguration[0].IsLossless
+                    && cueSheet.CTDB.QueryExceptionStatus == WebExceptionStatus.Success
+                    && audioSource.FailedSectors.PopulationCount() != 0)
+                {
+                    foreach (DBEntry entry in cueSheet.CTDB.Entries)
                     {
-                        foreach (DBEntry entry in cueSheet.CTDB.Entries)
+                        if (!entry.hasErrors || !entry.canRecover) continue;
+
+                        _logger.LogInformation("Found recovery record.");
+                        recoveryPossible = true;
+                        break;
+                    }
+                }
+
+                if (audioSource.FailedSectors.PopulationCount() != 0)
+                {
+                    if (recoveryPossible && !_config.SkipRepair)
+                    {
+                        _logger.LogInformation("Start repairing tracks.");
+                        var repairCue = RepairTracks(encoderType, encodingFormat, cueSheet.OutputStyle, metadataEntry, pathOut, ct);
+                        if (repairCue != null)
                         {
-                            recoveryPossible = entry.hasErrors && entry.canRecover;
-                            _logger.LogInformation("Found recovery record.");
-                            break;
+                            cueSheet.Close();
+                            cueSheet = repairCue;
                         }
                     }
-
-                    if (audioSource.FailedSectors.PopulationCount() != 0)
+                    else if (!_config.SkipRepair)
                     {
-                        if (recoveryPossible && !_config.SkipRepair)
-                        {
-                            _logger.LogInformation("Start repairing tracks.");
-                            var repairCue = RepairTracks(encoderType, encodingFormat, cueSheet.OutputStyle, metadataEntry, pathOut, ct);
-                            if (repairCue != null)
-                            {
-                                cueSheet.Close();
-                                cueSheet = repairCue;
-                                recoveryPossible = false;
-                            }
-                        }
-                        else if (!_config.SkipRepair)
-                        {
-                            _logger.LogWarning("Recovery is currently not possible for this disc.");
-                        }
-
-                        EncodeTracksPerConfig(pathOut, ripSettings.EncodingConfiguration, metadataEntry, ct);
-
-                        OnFinish?.Invoke(this, new(true, _localizer["Warning:RipTroubledDisc"], cueSheet.GenerateVerifyStatus() + "."));
+                        _logger.LogWarning("Recovery is currently not possible for this disc.");
                     }
+
+                    EncodeTracksPerConfig(pathOut, settings.EncodingConfiguration, metadataEntry, ct);
+
+                    finish(true, _localizer["Warning:RipTroubledDisc"], cueSheet.GenerateVerifyStatus() + ".");
+                }
+                else
+                {
+                    EncodeTracksPerConfig(pathOut, settings.EncodingConfiguration, metadataEntry, ct);
+
+                    if (_config.AutomaticRip)
+                        finish(true, _localizer["Status:RipFinished"], string.Empty);
                     else
-                    {
-                        EncodeTracksPerConfig(pathOut, ripSettings.EncodingConfiguration, metadataEntry, ct);
-
-                        if (_config.AutomaticRip)
-                            OnFinish?.Invoke(this, new(true, _localizer["Status:RipFinished"], string.Empty));
-                        else
-                            OnFinish?.Invoke(this, new(true, _localizer["Status:RipFinished"], cueSheet.GenerateVerifyStatus() + "."));
-                    }
+                        finish(true, _localizer["Status:RipFinished"], cueSheet.GenerateVerifyStatus() + ".");
                 }
-                catch (StopException)
+            }
+            finally
+            {
+                _logger.LogInformation("Read command: {ReadCommand}", audioSource.CurrentReadCommand);
+
+                stopRegistration.Dispose();
+
+                TryCleanup(cueSheet.Close, "Failed to close the cue sheet.");
+
+                if (_config.DisableEjectDisc)
                 {
-                    _logger.LogInformation("Ripping has been stopped by user.");
-
-                    OnFinish?.Invoke(this, new(false, _localizer["Status:RipFailUser"], string.Empty));
+                    _logger.LogInformation("Enabling disc ejecting.");
+                    TryCleanup(() => audioSource.DisableEjectDisc(false), "Failed to re-enable disc ejecting.");
                 }
-                catch (Exception ex)
+
+                if (_config.EjectAfterRip)
                 {
-                    _logger.LogError(ex, "Ripping has failed! Unexpected error occurred.");
+                    _logger.LogInformation("Ejecting disc from drive.");
 
-                    OnFinish?.Invoke(this, new(false, _localizer["Status:RipFail"], $"{_localizer["Error:Unexpected"]} {ex.Message}"));
+                    TryCleanup(audioSource.EjectDisk, "Failed to eject the disc after ripping.");
                 }
-                finally
-                {
-                    _logger.LogInformation("Read command: {ReadCommand}", audioSource.CurrentReadCommand);
+            }
+        }
 
-                    cueSheet.Close();
-
-                    if (_config.DisableEjectDisc)
-                    {
-                        _logger.LogInformation("Enabling disc ejecting.");
-                        audioSource.DisableEjectDisc(false);
-                    }
-
-                    if (_config.EjectAfterRip)
-                    {
-                        _logger.LogInformation("Ejecting disc from drive.");
-                        EjectTray();
-                    }
-                }
-            }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        private void TryCleanup(Action action, string failureMessage)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, failureMessage);
+            }
         }
 
         private ICDRipper? CreateCDRipper(char selectedDrive, RipSettings ripSettings, CancellationToken ct)
@@ -475,7 +505,7 @@ namespace CUERipper.Avalonia.Services
         {
             try
             {
-                CUEMetadata cache = CUEMetadata.Load(TOC.TOCID);
+                CUEMetadata? cache = _metadataStore.Load(TOC.TOCID);
                 if (cache == null) return null;
 
                 var metadataEntry = new CUEMetadataEntry(cache, TOC, "local");

@@ -43,6 +43,8 @@ namespace CUERipper.Avalonia.Services
     public class CUEMetaService : ICUEMetaService
     {
         private readonly ICUEConfigFacade _cueConfig;
+        private readonly ICUEMetadataStore _metadataStore;
+        private readonly IRemoteMetadataLookup _remoteLookup;
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
 
@@ -66,10 +68,14 @@ namespace CUERipper.Avalonia.Services
 
         public CUEMetaService(ICUERipperService ripperService
             , ICUEConfigFacade cueConfig
+            , ICUEMetadataStore metadataStore
+            , IRemoteMetadataLookup remoteLookup
             , HttpClient httpClient
             , ILogger<CUEMetaService> logger)
         {
             _cueConfig = cueConfig;
+            _metadataStore = metadataStore;
+            _remoteLookup = remoteLookup;
             _httpClient = httpClient;
             _logger = logger;
 
@@ -121,7 +127,7 @@ namespace CUERipper.Avalonia.Services
             CUEMetadata? userEntry = null;
             try
             {
-                userEntry = CUEMetadata.Load(_toc.TOCID);
+                userEntry = _metadataStore.Load(_toc.TOCID);
                 _logger.LogInformation("Found user entry for {TOCID}", _toc.TOCID);
             }
             catch (FileNotFoundException)
@@ -133,14 +139,28 @@ namespace CUERipper.Avalonia.Services
                 _logger.LogWarning(ex, "Non fatal error parsing CUE Metadata cache.");
             }
 
-            var remoteResult = CUESheet.LookupRemoteAlbumInfo(Constants.ApplicationShortName
-                , _toc
-                , _cueConfig.ToCUEConfig()
-                , useCTDB: true
-                , advancedSearch ? CTDBMetadataSearch.Extensive : CTDBMetadataSearch.Fast
-                , showProgress: (_, _) => { }
-                , checkStop: () => { }
-            );
+            List<CUEMetadataEntry> LookupRemote(CTDBMetadataSearch search)
+                => _remoteLookup.Lookup(Constants.ApplicationShortName
+                    , _toc
+                    , _cueConfig.ToCUEConfig()
+                    , search
+                );
+
+            var metadataSearch = advancedSearch
+                ? CTDBMetadataSearch.Extensive
+                : _cueConfig.MetadataSearch;
+
+            var remoteResult = LookupRemote(metadataSearch);
+
+            if (remoteResult.Count == 0
+                && metadataSearch != CTDBMetadataSearch.Extensive
+                && metadataSearch != CTDBMetadataSearch.None)
+            {
+                _logger.LogInformation("No results for {TOCID}, retrying with an extensive search."
+                    , _toc.TOCID);
+
+                remoteResult = LookupRemote(CTDBMetadataSearch.Extensive);
+            }
 
             _logger.LogInformation("{Count} remote results for {TOCID}", remoteResult.Count, _toc.TOCID);
 
@@ -227,6 +247,10 @@ namespace CUERipper.Avalonia.Services
         }
 
         public void FinalizeMetadata()
-            => SelectedMetadata?.Data.Save();
+        {
+            if (SelectedMetadata == null) return;
+
+            _metadataStore.Save(SelectedMetadata.Data);
+        }
     }
 }

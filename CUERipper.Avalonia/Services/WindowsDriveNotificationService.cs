@@ -17,10 +17,10 @@
 */
 // This file contains modified code from frmCUERipper.cs.
 #endregion
+using CUERipper.Avalonia.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -48,20 +48,18 @@ namespace CUERipper.Avalonia.Services
             _onDriveMounted = onDriveMounted;
         }
 
+        private readonly ICDDriveEnumerator _driveEnumerator;
         private readonly ILogger _logger;
-        public WindowsDriveNotificationService(ILogger<WindowsDriveNotificationService> logger)
+
+        public WindowsDriveNotificationService(ICDDriveEnumerator driveEnumerator
+            , ILogger<WindowsDriveNotificationService> logger)
         {
+            _driveEnumerator = driveEnumerator;
             _logger = logger;
             _wndProcDelegate = CustomWndProc;
 
             Init();
         }
-
-        private static List<char> GetCDDrives()
-            => DriveInfo.GetDrives()
-                .Where(d => d.DriveType == DriveType.CDRom)
-                .Select(d => d.Name[0])
-                .ToList();
 
         const string SCANNING_WINDOW = "CUERipperDriveScanningWindow";
         const string CLASS_NAME = "CUERipperDriveScanningClass";
@@ -74,7 +72,7 @@ namespace CUERipper.Avalonia.Services
             }
 #endif
 
-            _driveList = GetCDDrives();
+            _driveList = _driveEnumerator.DrivesAvailable().ToList();
 
             var wndClass = new WNDCLASS
             {
@@ -161,28 +159,24 @@ namespace CUERipper.Avalonia.Services
                         case DBT_DEVICEREMOVECOMPLETE:
                             {
                                 var driveLetter = ConvertToDriveLetter(lParam);
-                                var driveInfo = DriveInfo.GetDrives();
-                                var filteredDevice = driveInfo
-                                    .Where(d => d.Name[0] == driveLetter && d.DriveType == DriveType.CDRom)
-                                    .FirstOrDefault();
-
-                                if (filteredDevice != null) _onDriveUnmounted?.Invoke(driveLetter);
+                                if (_driveEnumerator.DrivesAvailable().Contains(driveLetter))
+                                {
+                                    _onDriveUnmounted?.Invoke(driveLetter);
+                                }
                             }
                             break;
                         case DBT_DEVICEARRIVAL:
                             {
                                 var driveLetter = ConvertToDriveLetter(lParam);
-                                var driveInfo = DriveInfo.GetDrives();
-                                var filteredDevice = driveInfo
-                                    .Where(d => d.Name[0] == driveLetter && d.DriveType == DriveType.CDRom)
-                                    .FirstOrDefault();
-
-                                if (filteredDevice != null) _onDriveMounted?.Invoke(driveLetter);
+                                if (_driveEnumerator.DrivesAvailable().Contains(driveLetter))
+                                {
+                                    _onDriveMounted?.Invoke(driveLetter);
+                                }
                             }
                             break;
                         case DBT_DEVNODES_CHANGED:
                             {
-                                var currentDrives = GetCDDrives();
+                                var currentDrives = _driveEnumerator.DrivesAvailable().ToList();
                                 var difference = currentDrives.Except(_driveList)
                                     .Concat(_driveList.Except(currentDrives));
 

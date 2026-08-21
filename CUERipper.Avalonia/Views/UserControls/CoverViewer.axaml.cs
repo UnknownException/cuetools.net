@@ -21,12 +21,15 @@ using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Extensions;
+using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.Utilities;
 using CUERipper.Avalonia.ViewModels.UserControls;
 using CUERipper.Avalonia.Views.UserControls.Abstractions;
+using CUETools.CTDB;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
@@ -46,6 +49,7 @@ public sealed partial class CoverViewer : UserControl, ICUEUserControl, IDisposa
     private readonly InterruptibleJob _thumbnailJob = new();
 
     private ICUEMetaService? _metaService;
+
     public CoverViewer()
     {
         InitializeComponent();
@@ -59,7 +63,27 @@ public sealed partial class CoverViewer : UserControl, ICUEUserControl, IDisposa
 
         PlaceholderCover = GetPlaceholderAlbumCover();
         ViewModel.CurrentCover = PlaceholderCover;
+
+        if (_metaService != null)
+        {
+            _metaService.OnSelectedMetadataChanged += OnSelectedMetadataChanged;
+        }
     }
+
+    private void OnSelectedMetadataChanged(object? sender, SelectedMetadataChangedEventArgs e)
+    {
+        var releaseCovers = GetReleaseCovers(e.AlbumMetadata);
+
+        var match = ViewModel.AlbumCovers.FirstOrDefault(c => releaseCovers.Any(c.Equals));
+        if (match != null) SelectCover(match);
+    }
+
+    private static CoverViewAlbumViewModel[] GetReleaseCovers(AlbumMetadata? metadata)
+        => (metadata?.Data.AlbumArt ?? [])
+            .Where(HasAnyUri)
+            .Where(x => x.primary)
+            .Select(ToCoverViewModel)
+            .ToArray();
 
     public void Feed()
     {
@@ -67,15 +91,16 @@ public sealed partial class CoverViewer : UserControl, ICUEUserControl, IDisposa
  
         var unorderedCovers = _metaService.GetAlbumMetaInformation(false)
             .SelectMany(x => x.Data.AlbumArt)
-            .Where(x => !string.IsNullOrWhiteSpace(x.uri) || !string.IsNullOrWhiteSpace(x.uri150))
-            .Select(x => new CoverViewAlbumViewModel(!string.IsNullOrWhiteSpace(x.uri) ? x.uri : x.uri150
-                , !string.IsNullOrWhiteSpace(x.uri150) ? x.uri150 : x.uri
-                , x.primary)
-            )
+            .Where(HasAnyUri)
+            .Select(ToCoverViewModel)
+            .OrderByDescending(x => x.IsPrimary)
             .Distinct()
             .ToArray();
 
-        var orderedCovers = new[] 
+        var releaseCovers = GetReleaseCovers(_metaService.SelectedMetadata);
+        var preselectedCover = unorderedCovers.FirstOrDefault(c => releaseCovers.Any(c.Equals));
+
+        var orderedCovers = new[]
         { 
             // Primary artwork (Front cover)
             unorderedCovers.Where(x => x.IsPrimary)
@@ -101,13 +126,12 @@ public sealed partial class CoverViewer : UserControl, ICUEUserControl, IDisposa
                             cover.Bitmap150 = bitmap;
                             Dispatcher.UIThread.Post(() =>
                             {
-                                if (ViewModel.AlbumCovers.None())
-                                {
-                                    cover.IsSelected = true;
-                                    ViewModel.CurrentCover = cover.Bitmap150;
-                                }
-
                                 ViewModel.AlbumCovers.Add(cover);
+
+                                if (cover == preselectedCover || ViewModel.AlbumCovers.None(x => x.IsSelected))
+                                {
+                                    SelectCover(cover);
+                                }
                             });
                         }
                     }
@@ -130,13 +154,32 @@ public sealed partial class CoverViewer : UserControl, ICUEUserControl, IDisposa
 
         if (sender is Image image && image.DataContext is CoverViewAlbumViewModel cover)
         {
-            var previous = ViewModel.AlbumCovers.Where(x => x.IsSelected).FirstOrDefault();
-            if (previous != null) previous.IsSelected = false;
-
-            cover.IsSelected = true;
-
-            ViewModel.CurrentCover = cover.Bitmap150;
+            SelectCover(cover);
         }
+    }
+
+    private static bool HasAnyUri(CTDBResponseMetaImage art)
+        => !string.IsNullOrWhiteSpace(art.uri) || !string.IsNullOrWhiteSpace(art.uri150);
+
+    private static CoverViewAlbumViewModel ToCoverViewModel(CTDBResponseMetaImage art)
+        => new(!string.IsNullOrWhiteSpace(art.uri) ? art.uri : art.uri150
+            , !string.IsNullOrWhiteSpace(art.uri150) ? art.uri150 : art.uri
+            , art.primary);
+
+    private void SelectCover(CoverViewAlbumViewModel cover)
+    {
+        if (ViewModel.IsReadOnly)
+        {
+            return;
+        }
+
+        foreach (var previous in ViewModel.AlbumCovers.Where(x => x.IsSelected).ToArray())
+        {
+            previous.IsSelected = false;
+        }
+
+        cover.IsSelected = true;
+        ViewModel.CurrentCover = cover.Bitmap150;
     }
 
     public async Task<string> GetCurrentCoverAsync(CancellationToken ct)
@@ -146,7 +189,7 @@ public sealed partial class CoverViewer : UserControl, ICUEUserControl, IDisposa
         await TryWaitForAtLeastOneThumbnail(ct);
 
         var cover = ViewModel.AlbumCovers.Where(x => x.IsSelected).FirstOrDefault();
-        if (cover == null) return string.Empty;
+        if (cover?.Uri == null) return string.Empty;
 
         await _metaService.FetchImageAsync(cover.Uri, ct);
         return cover.Uri;
@@ -203,6 +246,11 @@ public sealed partial class CoverViewer : UserControl, ICUEUserControl, IDisposa
     {
         if (_disposed) return;
         _disposed = true;
+
+        if (_metaService != null)
+        {
+            _metaService.OnSelectedMetadataChanged -= OnSelectedMetadataChanged;
+        }
 
         _thumbnailJob.Dispose();
 

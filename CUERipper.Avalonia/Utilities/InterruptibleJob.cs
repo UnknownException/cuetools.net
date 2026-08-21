@@ -32,6 +32,8 @@ namespace CUERipper.Avalonia.Utilities
     /// </summary>
     public sealed class InterruptibleJob : IDisposable
     {
+        private const int InterruptTimeout = 1000;
+
         private Task? _wrappedTask;
         private CancellationTokenSource _cts = new();
 
@@ -42,11 +44,8 @@ namespace CUERipper.Avalonia.Utilities
         {
             Interrupt();
 
-            _wrappedTask = Task.Factory.StartNew(async () =>
-            {
-                await function(_cts.Token);
-            }, _cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default)
-            .Unwrap()
+            var token = _cts.Token;
+            _wrappedTask = Task.Run(() => function(token), token)
             .ContinueWith((t) =>
             {
                 if (t.IsFaulted)
@@ -65,47 +64,44 @@ namespace CUERipper.Avalonia.Utilities
 
             try
             {
-                _wrappedTask.Wait(1000);
+                _wrappedTask.Wait(InterruptTimeout);
             }
             catch (AggregateException ex)
             {
-                if (!ex.InnerExceptions.Select(e => e.GetType()).Contains(typeof(TaskCanceledException)))
+                if (!ex.InnerExceptions.Any(e => e is OperationCanceledException))
                     throw;
             }
 
-            if (!_cts.TryReset())
+            if (!_cts.TryReset()) _cts = new();
+        }
+
+        private bool WaitForCompletion()
+        {
+            if (_wrappedTask == null || _wrappedTask.IsCompleted) return true;
+
+            try
             {
-                _cts.Dispose();
-                _cts = new();
+                return _wrappedTask.Wait(InterruptTimeout);
+            }
+            catch
+            {
+                return _wrappedTask.IsCompleted;
             }
         }
 
         private bool _disposed;
         public void Dispose()
         {
-            if (_disposed == true) return;
+            if (_disposed) return;
             _disposed = true;
 
             if (!_cts.IsCancellationRequested) _cts.Cancel();
 
-            if (_wrappedTask != null)
+            if (WaitForCompletion())
             {
-                if (!_wrappedTask.IsCompleted)
-                {
-                    try
-                    {
-                        _wrappedTask.Wait(1000);
-                    }
-                    catch
-                    {
-                        // ..
-                    }
-                }
-
-                _wrappedTask.Dispose();
+                _wrappedTask?.Dispose();
+                _cts.Dispose();
             }
-
-            _cts.Dispose();
 
             GC.SuppressFinalize(this);
         }

@@ -212,7 +212,7 @@ namespace CUERipper.Avalonia.Services
 
         private static GithubAsset? GetSetupAsset(GithubRelease latestRelease)
         {
-            const string EXE_PATTERN = @"^CUETools_Setup_\d+\.\d+\.\d+[a-zA-Z]?\.exe";
+            const string EXE_PATTERN = @"^CUETools_Setup_\d+\.\d+\.\d+[a-zA-Z]?\.exe$";
             Regex regex = new(EXE_PATTERN);
 
             return latestRelease.Assets

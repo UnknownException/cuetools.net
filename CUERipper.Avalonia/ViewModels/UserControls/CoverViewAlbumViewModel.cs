@@ -24,9 +24,9 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
 {
     public partial class CoverViewAlbumViewModel : ObservableObject, IEquatable<CoverViewAlbumViewModel>
     {
-        public string Uri { get; set; }
-        public string Uri150 { get; set; }
-        public bool IsPrimary { get; set; }
+        public string Uri { get; init; }
+        public string Uri150 { get; init; }
+        public bool IsPrimary { get; init; }
 
         public Bitmap? Bitmap150 { get; set; }
 
@@ -56,5 +56,11 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             if (other == null) return false;
             return Uri == other.Uri && Uri150 == other.Uri150;
         }
+
+        public override bool Equals(object? obj)
+            => Equals(obj as CoverViewAlbumViewModel);
+
+        public override int GetHashCode()
+            => (Uri?.GetHashCode() ?? 0) * 31 ^ Uri150?.GetHashCode() ?? 0;
     }
 }

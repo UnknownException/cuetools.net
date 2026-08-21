@@ -97,6 +97,12 @@ namespace CUERipper.Avalonia
 
         public void ConfigureServices(IServiceCollection services)
         {
+			// Thin wrappers around static CUETools functions
+            services.AddSingleton<ICUEMetadataStore, CUEMetadataStore>();
+            services.AddSingleton<ICDDriveEnumerator, CDDriveEnumerator>();
+            services.AddSingleton<ICDRipperFactory, CDRipperFactory>();
+            services.AddSingleton<IRemoteMetadataLookup, RemoteMetadataLookup>();
+            
             services.AddSingleton<ICUERipperService, CUERipperService>();
             services.AddSingleton<ICUEMetaService, CUEMetaService>();
 
@@ -158,6 +164,16 @@ namespace CUERipper.Avalonia
             {
                 var config = serviceProvider.GetRequiredService<ICUEConfigFacade>();
                 config.Save();
+
+                // Save unpersisted metadata changes
+                try
+                {
+                    serviceProvider.GetRequiredService<ICUEMetaService>().FinalizeMetadata();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to save album metadata during shutdown.");
+                }
             }
 
             serviceProvider.Dispose();

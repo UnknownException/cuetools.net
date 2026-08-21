@@ -67,7 +67,7 @@ namespace CUERipper.Avalonia.Services.Abstractions
         void EjectTray();
         int GetDriveOffset();
 
-        Task RipAudioTracks(RipSettings settings
+        Task StartRipProcess(RipSettings settings
             , CancellationToken token);
     }
 }
