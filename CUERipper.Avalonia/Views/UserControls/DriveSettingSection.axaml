@@ -6,7 +6,7 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="CUERipper.Avalonia.Views.UserControls.DriveSettingSection"
 			 x:DataType="vm:DriveSettingSectionViewModel">
-	<Grid>
+	<Grid IsEnabled="{Binding !IsReadOnly}">
 		<Grid.RowDefinitions>
 			<RowDefinition Height="*"/>
 			<RowDefinition Height="*"/>

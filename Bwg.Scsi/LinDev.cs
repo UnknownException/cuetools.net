@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,8 +17,12 @@
 */
 #endregion
 /*
- * Warning: This is a highly experimental reimplementation of WinDev.cs for Linux.
- * The code in this file requires thorough review and improvement.
+ * Linux reimplementation of WinDev.cs
+ * Tested on Arch and Mint in combination with a USB DVD-drive
+ * Various cases are still untested, consider it experimental
+ * 
+ * Output files validated against CTDB
+ * CUE file and gaps validated against Windows rip and cdrdao under Linux
  */
 #if NETSTANDARD2_0
 using CUETools.Interop;

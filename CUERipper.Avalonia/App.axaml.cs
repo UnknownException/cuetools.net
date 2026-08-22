@@ -121,6 +121,7 @@ namespace CUERipper.Avalonia
             services.AddTransient<MetaGridViewModel>();
             services.AddTransient<TrackGridViewModel>();
             services.AddTransient<CoverViewerViewModel>();
+            services.AddTransient<RipSessionViewModel>();
 
             services.AddTransient<ICUEDialogService, CUEDialogService>();
             services.AddSingleton<IIconService, IconService>();

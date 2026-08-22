@@ -20,6 +20,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CUERipper.Avalonia.Exceptions;
+using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUETools.Codecs;
 using System;
@@ -45,5 +46,11 @@ namespace CUERipper.Avalonia.Services
 
         public async Task ShowEncoderOptionsAsync(IAudioEncoderSettings encoderSettings)
             => await EncoderOptionsDialog.CreateAsync(Owner, _serviceProvider, encoderSettings);
+
+        public async Task ShowPathFormatAsync(AlbumMetadata? meta)
+            => await PathFormatDialog.CreateAsync(Owner, _serviceProvider, meta);
+
+        public async Task ShowUpdateAsync()
+            => await UpdateDialog.CreateAsync(Owner, _serviceProvider);
     }
 }

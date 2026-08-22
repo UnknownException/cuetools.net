@@ -42,7 +42,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Views
 {
-    public sealed partial class MainWindow : Window, IDisposable
+    public sealed partial class MainWindow : Window
     {
         public MainWindowViewModel ViewModel => DataContext as MainWindowViewModel
             ?? throw new ViewModelMismatchException(typeof(MainWindowViewModel), DataContext?.GetType());
@@ -55,19 +55,6 @@ namespace CUERipper.Avalonia.Views
         private readonly IUpdateService _updateService;
         private readonly ILogger _logger;
 
-        private Task? _rippingTask;
-        private CancellationTokenSource _rippingCts = new();
-
-        /// <summary>
-        /// Added for readability.
-        /// </summary>
-        private enum UIMode
-        {
-            Init
-            , Ready
-            , Ripping
-            , Done
-        }
 
 // TODO not clean, refactor
 #if DEBUG
@@ -83,7 +70,6 @@ namespace CUERipper.Avalonia.Views
             _config = CUEConfigFacade.Create();
 
             InitializeComponent();
-            SetUI(UIMode.Init);
         }
 #pragma warning restore 8618
 #endif
@@ -94,7 +80,6 @@ namespace CUERipper.Avalonia.Views
             , IDriveNotificationService driveNotificationService
             , ICUEConfigFacade config
             , IStringLocalizer<Language> localizer
-            , IIconService iconService
             , IUpdateService updateService
             , MainWindowViewModel viewModel
             , ILogger<MainWindow> logger)
@@ -111,25 +96,7 @@ namespace CUERipper.Avalonia.Views
             DataContextChanged += OnDataContextChanged;
             Closing += OnWindowClosing;
 
-            Image BindImage(AppIcon icon) => new() { Source = iconService.GetIcon(icon), Width = 18, Height = 18 };
-
             buttonRefreshDrives.Click += OnRefreshDrivesClicked;
-            buttonRefreshDrives.Content = BindImage(AppIcon.Disc);
-            buttonAdvancedSearch.Click += OnAdvancedSearchClicked;
-            buttonAdvancedSearch.Content = BindImage(AppIcon.Search);
-            buttonResetSearch.Click += OnResetSearchClicked;
-            buttonResetSearch.Content = BindImage(AppIcon.Cross);
-            buttonEject.Click += OnEjectClicked;
-            buttonEject.Content = BindImage(AppIcon.Eject);
-            buttonGo.Click += OnGoClicked;
-            buttonAbort.Click += OnAbortClicked;
-            buttonTogglePane.Click += OnTogglePane;
-            buttonGoSidePane.Click += OnGoClicked;
-            buttonAbortSidePane.Click += OnAbortClicked;
-            buttonPathFormat.Click += OnPathFormatClicked;
-            buttonUpdate.Click += OnUpdateClicked;
-            buttonUpdate.Content = BindImage(AppIcon.New);
-            buttonUpdate.IsVisible = false;
 
             driveNotificationService.SetCallbacks(OnDriveListRefreshRequestedCallback
                 , OnDriveUnmountedCallback
@@ -148,7 +115,6 @@ namespace CUERipper.Avalonia.Views
                     }
                 });
 
-            SetUI(UIMode.Init);
             DataContext = viewModel;
         }
 
@@ -166,21 +132,21 @@ namespace CUERipper.Avalonia.Views
             {
                 ViewModel.CoverViewer.Feed();
 
-                SetUI(UIMode.Ready);
+                ViewModel.RipSession.Mode = SessionState.Ready;
 
                 if (_config.AutomaticRip && _metaService.SelectedMetadata != null)
                 {
-                    await StartRippingAsync();
+                    await ViewModel.RipSession.StartCommand.ExecuteAsync(null);
                 }
             }
             else
             {
-                SetUI(UIMode.Init);
+                ViewModel.RipSession.Mode = SessionState.Init;
                 _logger.LogInformation(Constants.NoCDDriveFound);
             }
 
             var fetched = await _updateService.FetchAsync();
-            buttonUpdate.IsVisible = fetched && _updateService.UpdateMetadata.UpdateAvailable();
+            ViewModel.UpdateAvailable = fetched && _updateService.UpdateMetadata.UpdateAvailable();
         }
 
         private async void OnDataContextChanged(object? sender, EventArgs e)
@@ -188,142 +154,6 @@ namespace CUERipper.Avalonia.Views
 
         private async void OnRefreshDrivesClicked(object? sender, EventArgs e)
             => await InitializeApplicationAsync();
-
-        private void OnAdvancedSearchClicked(object? sender, EventArgs e)
-        {
-            // Advanced search ignores the cache
-            _metaService.GetAlbumMetaInformation(true);
-            ViewModel.RefreshAlbums();
-        }
-
-        private void OnResetSearchClicked(object? sender, EventArgs e)
-        {
-            _metaService.ResetAlbumMetaInformation();
-            _metaService.GetAlbumMetaInformation(false);
-            ViewModel.RefreshAlbums();
-        }
-
-        private void OnEjectClicked(object? sender, EventArgs e)
-            => _ripperService.EjectTray();
-
-        private async void OnGoClicked(object? sender, EventArgs e)
-            => await StartRippingAsync();
-
-        private async Task StartRippingAsync()
-        {
-            if (_rippingTask != null && !_rippingTask.IsCompleted)
-            {
-                _logger.LogError("Ripping already in progress, how can this button be clicked?");
-                return;
-            }
-
-            _metaService.FinalizeMetadata();
-
-            lblStatus.Text = _localizer["Status:DownloadingAlbumCover"];
-            var albumCoverUri = await ViewModel.CoverViewer.GetCurrentCoverAsync(_rippingCts.Token);
-
-            var ripSettings = new RipSettings
-            {
-                DriveOffset = ViewModel.DriveSettings.DriveOffset
-                , C2ErrorModeSetting = (DriveC2ErrorModeSetting)Enum.Parse(typeof(DriveC2ErrorModeSetting), ViewModel.DriveSettings.SelectedC2ErrorMode, true)
-                , CorrectionQuality = ViewModel.DriveSettings.SelectedSecureMode
-                , TestAndCopy = ViewModel.DriveSettings.TestAndCopyEnabled
-                , AlbumCoverUri = albumCoverUri
-                , EncodingConfiguration = ViewModel.EncodingTabs.GetEncodingConfigurations()
-            };
-
-            SetUI(UIMode.Ripping);
-
-            if (!_rippingCts.TryReset())
-            {
-                _rippingCts.Dispose();
-                _rippingCts = new();
-            }
-
-            _rippingTask = _ripperService.StartRipProcess(ripSettings, _rippingCts.Token);
-        }
-
-        private async void OnAbortClicked(object? sender, EventArgs e)
-        {
-            if (_rippingTask == null || _rippingTask.IsCompleted)
-            {
-                _logger.LogError("No rip in progress, how can this button be clicked?");
-                return;
-            }
-
-            _rippingCts.Cancel();
-
-            lblStatus.Text = _localizer["Status:RipperStop"];
-
-            await WaitForTaskToFinishAsync();
-
-            lblStatus.Text = _localizer["Status:RipperStopped"];
-
-            SetUI(UIMode.Done);
-        }
-
-        private void OnTogglePane(object? sender, EventArgs e)
-        {
-            ViewModel.SplitPaneOpen = !ViewModel.SplitPaneOpen;
-            buttonTogglePane.Content = ViewModel.SplitPaneOpen ? ">" : "<"; 
-        }
-
-        private async void OnPathFormatClicked(object? sender, EventArgs e)
-        {
-            var meta = _metaService.SelectedMetadata;
-            await PathFormatDialog.CreateAsync(this, _serviceProvider, meta);
-            ViewModel.OutputPath = meta.PathStringFromFormat(_config.PathFormat, _config) ?? string.Empty;
-        }
-
-        private async void OnUpdateClicked(object? sender, EventArgs e)
-        {            
-            await UpdateDialog.CreateAsync(this, _serviceProvider);
-        }
-
-        private void SetUI(UIMode uiMode)
-        {            
-            buttonGo.IsVisible = uiMode != UIMode.Ripping;
-            buttonGo.IsEnabled = uiMode == UIMode.Ready || uiMode == UIMode.Done;
-            buttonAbort.IsVisible = !buttonGo.IsVisible;
-
-            buttonGoSidePane.IsVisible = buttonGo.IsVisible;
-            buttonGoSidePane.IsEnabled = buttonGo.IsEnabled;
-            buttonAbortSidePane.IsVisible = buttonAbort.IsVisible;
-
-            buttonPathFormat.IsEnabled = uiMode != UIMode.Ripping;
-
-            GetDiscDriveControls()
-                .ForEach(c => c.IsEnabled = uiMode != UIMode.Ripping);
-
-            GetAlbumReleaseControls()
-                .ForEach(c => c.IsEnabled = uiMode != UIMode.Ripping && uiMode != UIMode.Init);
-
-            encodingTabContainer.IsEnabled = uiMode != UIMode.Ripping;
-
-            driveSettingSection.IsEnabled = uiMode != UIMode.Ripping && uiMode != UIMode.Init;
-
-
-            if (DataContext is MainWindowViewModel vm)
-            {
-                vm.TrackGrid.IsReadOnly = uiMode == UIMode.Ripping || uiMode == UIMode.Init;
-                vm.MetaGrid.IsReadOnly = uiMode == UIMode.Ripping || uiMode == UIMode.Init;
-
-                // BUG causes flickering on tab header when moving mouse over images
-                // coverViewer.IsEnabled = uiMode != UIMode.Ripping;
-                vm.CoverViewer.IsReadOnly = uiMode == UIMode.Ripping;
-            }
-
-            buttonTogglePane.Content = _config.DetailPaneOpened ? ">" : "<";
-
-            lblStatus.Text = uiMode switch
-            {
-                UIMode.Init => ""
-                , UIMode.Ready => Design.IsDesignMode ? "Ready" : _localizer["Status:Ready"]
-                , _ => lblStatus.Text
-            };
-
-            buttonUpdate.IsEnabled = uiMode != UIMode.Ripping;
-        }
 
         private void RepairSelectionCallback(object? sender, CUEToolsSelectionEventArgs args)
         {
@@ -344,7 +174,7 @@ namespace CUERipper.Avalonia.Views
             string status = args.status;
             Dispatcher.UIThread.Post(() =>
             {
-                lblStatus.Text = status;
+                ViewModel.RipSession.ReportStatus(status);
             });
         }
 
@@ -378,17 +208,20 @@ namespace CUERipper.Avalonia.Views
                 double correctionProcessed = (double)processed / (correctionQuality + 1) + correctionLength * Math.Min(args.Pass, correctionQuality);
                 double currentProgress = args.PassStart + correctionProcessed;
 
-                lblStatus.Text = currentProgress >= audioLength ? _localizer["Status:Finalizing"] : status;
-
                 double errorRatio = Math.Log(args.ErrorsCount / 10.0 + 1);
                 double passRatio = Math.Log((args.PassEnd - args.PassStart) / 10.0 + 1);
                 double errorPercentage = (errorRatio / passRatio) * 100;
 
                 if (DataContext is MainWindowViewModel viewModel)
                 {
-                    viewModel.ReadingProgress = MathClamp.Clamp((int)(trackPercentage * 100), 0, 100);
-                    viewModel.ErrorProgress = MathClamp.Clamp((int)errorPercentage, 0, 100);
-                    viewModel.TotalProgress = (int)Math.Round((MathClamp.Clamp(currentProgress, 0, audioLength) / audioLength * 100));
+                    viewModel.RipSession.ReportStatus(currentProgress >= audioLength
+                        ? _localizer["Status:Finalizing"]
+                        : status);
+
+                    viewModel.RipSession.ReportProgress(
+                        reading: MathClamp.Clamp((int)(trackPercentage * 100), 0, 100)
+                        , total: (int)Math.Round((MathClamp.Clamp(currentProgress, 0, audioLength) / audioLength * 100))
+                        , error: MathClamp.Clamp((int)errorPercentage, 0, 100));
 
                     for (int i = 0; i < audioTrackCount && i < viewModel.TrackGrid.Tracks.Count; ++i)
                     {
@@ -406,7 +239,7 @@ namespace CUERipper.Avalonia.Views
         {
             Dispatcher.UIThread.Post(async () =>
             {
-                lblStatus.Text = e.Status;
+                ViewModel.RipSession.ReportStatus(e.Status);
 
                 if (!string.IsNullOrWhiteSpace(e.PopupContent))
                 {
@@ -414,7 +247,7 @@ namespace CUERipper.Avalonia.Views
                     await MessageBox.CreateAsync(this, _serviceProvider, messageBox);
                 }
 
-                SetUI(UIMode.Done);
+                ViewModel.RipSession.Mode = SessionState.Done;
             });
         }
 
@@ -441,13 +274,13 @@ namespace CUERipper.Avalonia.Views
         {
             Dispatcher.UIThread.Post(async () =>
             {
-                if (_rippingTask != null && !_rippingTask.IsCompleted)
+                if (ViewModel.RipSession.IsBusy)
                 {
                     var drives = _ripperService.QueryAvailableDriveInformation().Select(d => d.Key);
                     if (drives.Contains(_ripperService.SelectedDrive)) return;
 
-                    _rippingCts.Cancel();
-                    await WaitForTaskToFinishAsync();
+                    ViewModel.RipSession.Cancel();
+                    await WaitWithBusyCursorAsync();
                 }
 
                 await InitializeApplicationAsync();
@@ -460,19 +293,19 @@ namespace CUERipper.Avalonia.Views
             {
                 if (driveLetter == _ripperService.SelectedDrive)
                 {
-                    if (_rippingTask != null && !_rippingTask.IsCompleted)
+                    if (ViewModel.RipSession.IsBusy)
                     {
-                        _rippingCts.Cancel();
-                        lblStatus.Text = _localizer["Status:DiscUnexpectedRemove"];
+                        ViewModel.RipSession.Cancel();
+                        ViewModel.RipSession.ReportStatus(_localizer["Status:DiscUnexpectedRemove"]);
                     }
                     else
                     {
-                        lblStatus.Text = _localizer["Status:DiscRemoved"];
+                        ViewModel.RipSession.ReportStatus(_localizer["Status:DiscRemoved"]);
                     }
 
-                    await WaitForTaskToFinishAsync();
+                    await WaitWithBusyCursorAsync();
 
-                    SetUI(UIMode.Init);
+                    ViewModel.RipSession.Mode = SessionState.Init;
                 }
             });
         }
@@ -485,17 +318,12 @@ namespace CUERipper.Avalonia.Views
             });
         }
 
-        private async Task WaitForTaskToFinishAsync()
+        private async Task WaitWithBusyCursorAsync()
         {
-            if (_rippingTask == null) return;
-
             var previousCursor = Cursor;
             using (Cursor = new Cursor(StandardCursorType.Wait))
             {
-                while (!_rippingTask.IsCompleted)
-                {
-                    await Task.Delay(100);
-                }
+                await ViewModel.RipSession.WaitForCompletionAsync();
             }
 
             Cursor = previousCursor;
@@ -508,7 +336,7 @@ namespace CUERipper.Avalonia.Views
 
         private async void OnWindowClosing(object? sender, WindowClosingEventArgs e)
         {
-            if (_rippingTask != null && !_rippingTask.IsCompleted)
+            if (ViewModel.RipSession.IsBusy)
             {
                 e.Cancel = true;
 
@@ -520,8 +348,8 @@ namespace CUERipper.Avalonia.Views
                 var result = await MessageBox.CreateAsync(this, _serviceProvider, messageBox);
                 if (result)
                 {
-                    _rippingCts.Cancel();
-                    await WaitForTaskToFinishAsync();
+                    ViewModel.RipSession.Cancel();
+                    await WaitWithBusyCursorAsync();
 
                     // Try again
                     Close();
@@ -531,45 +359,6 @@ namespace CUERipper.Avalonia.Views
             {
                 ViewModel.EncodingTabs.PersistTabs();
             }
-        }
-
-        private List<InputElement> GetDiscDriveControls()
-            => [
-                comboBoxDiscDrives
-                , comboBoxDiscDrivesSidePane
-                , buttonRefreshDrives
-                , buttonEject
-            ];
-
-        private List<InputElement> GetAlbumReleaseControls()
-            => [
-                comboBoxAlbumReleases
-                , comboBoxAlbumReleasesSidePane
-                , buttonAdvancedSearch
-                , buttonResetSearch
-            ];
-
-        private bool _disposed;
-
-        /// <summary>
-        /// Class is sealed, so no need for inheritance concerns including a complex dispose pattern.
-        /// </summary>
-        public void Dispose()
-        {
-            if (_disposed == true) return;
-            _disposed = true;
-
-            if (!_rippingCts.IsCancellationRequested) _rippingCts.Cancel();
-
-            if (_rippingTask != null)
-            {
-                if (!_rippingTask.IsCompleted) _rippingTask.Wait();
-                _rippingTask.Dispose();
-            }
-
-            _rippingCts.Dispose();
-
-            GC.SuppressFinalize(this);
         }
     }
 }

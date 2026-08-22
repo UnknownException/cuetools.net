@@ -7,7 +7,7 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
 			 x:Class="CUERipper.Avalonia.Views.UserControls.EncodingTabContainer"
 			 x:DataType="vm:EncodingTabContainerViewModel">
-	<Panel>
+	<Panel IsEnabled="{Binding !IsReadOnly}">
 		<TabControl Padding="0"
 					ItemsSource="{Binding Tabs}"
 					SelectedItem="{Binding SelectedTab}">

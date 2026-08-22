@@ -16,16 +16,22 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels.UserControls;
 using Microsoft.Extensions.Localization;
+using CUETools.Ripper;
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.ViewModels
 {
@@ -67,59 +73,142 @@ namespace CUERipper.Avalonia.ViewModels
         [ObservableProperty]
         private string outputPath = "Output Path";
 
-        [ObservableProperty]
-        private int readingProgress;
+        private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(RipSessionViewModel.Mode)) return;
+
+            TrackGrid.IsReadOnly = !RipSession.IsDiscIdle;
+            MetaGrid.IsReadOnly = !RipSession.IsDiscIdle;
+            DriveSettings.IsReadOnly = !RipSession.IsDiscIdle;
+
+            CoverViewer.IsReadOnly = RipSession.IsRipping;
+            EncodingTabs.IsReadOnly = RipSession.IsRipping;
+
+            // Ripping and Done keep whatever the ripper last reported
+            if (RipSession.Mode == SessionState.Init) RipSession.Status = string.Empty;
+            else if (RipSession.Mode == SessionState.Ready) RipSession.Status = _localizer["Status:Ready"];
+        }
 
         [ObservableProperty]
-        private int totalProgress;
+        private bool updateAvailable;
 
         [ObservableProperty]
-        private int errorProgress;
-
-        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(TogglePaneGlyph))]
         private bool splitPaneOpen;
         partial void OnSplitPaneOpenChanged(bool oldValue, bool newValue)
         {
             _config.DetailPaneOpened = newValue;
         }
 
+        public string TogglePaneGlyph { get => SplitPaneOpen ? ">" : "<"; }
+
         public string HeaderTracks { get => _localizer["Main:Tracks"]; }
         public string HeaderMetadata { get => _localizer["Main:Metadata"]; }
+
+        public Bitmap? IconRefreshDrives { get; }
+        public Bitmap? IconAdvancedSearch { get; }
+        public Bitmap? IconResetSearch { get; }
+        public Bitmap? IconEject { get; }
+        public Bitmap? IconUpdate { get; }
 
         public DriveSettingSectionViewModel DriveSettings { get; }
         public EncodingTabContainerViewModel EncodingTabs { get; }
         public MetaGridViewModel MetaGrid { get; }
         public TrackGridViewModel TrackGrid { get; }
         public CoverViewerViewModel CoverViewer { get; }
+        public RipSessionViewModel RipSession { get; }
 
         private readonly ICUEConfigFacade _config;
         private readonly ICUERipperService _ripperService;
         private readonly ICUEMetaService _metaService;
         private readonly IStringLocalizer _localizer;
         private readonly IIconService _iconService;
+        private readonly ICUEDialogService _dialogService;
         public MainWindowViewModel(ICUEConfigFacade config
             , ICUERipperService ripperService
             , ICUEMetaService metaService
             , IStringLocalizer<Language> stringLocalizer
             , IIconService iconService
+            , ICUEDialogService dialogService
             , DriveSettingSectionViewModel driveSettings
             , EncodingTabContainerViewModel encodingTabs
             , MetaGridViewModel metaGrid
             , TrackGridViewModel trackGrid
-            , CoverViewerViewModel coverViewer)
+            , CoverViewerViewModel coverViewer
+            , RipSessionViewModel ripSession)
         {
             _config = config;
             _ripperService = ripperService;
             _metaService = metaService;
             _localizer = stringLocalizer;
             _iconService = iconService;
+            _dialogService = dialogService;
 
             DriveSettings = driveSettings;
             EncodingTabs = encodingTabs;
             MetaGrid = metaGrid;
             TrackGrid = trackGrid;
             CoverViewer = coverViewer;
+            RipSession = ripSession;
+
+            RipSession.UseSettingsFactory(BuildRipSettingsAsync);
+            RipSession.PropertyChanged += OnSessionPropertyChanged;
+
+            IconRefreshDrives = iconService.GetIcon(AppIcon.Disc);
+            IconAdvancedSearch = iconService.GetIcon(AppIcon.Search);
+            IconResetSearch = iconService.GetIcon(AppIcon.Cross);
+            IconEject = iconService.GetIcon(AppIcon.Eject);
+            IconUpdate = iconService.GetIcon(AppIcon.New);
         }
+
+        [RelayCommand]
+        private void AdvancedSearch()
+        {
+            // Advanced search ignores the cache
+            _metaService.GetAlbumMetaInformation(true);
+            RefreshAlbums();
+        }
+
+        [RelayCommand]
+        private void ResetSearch()
+        {
+            _metaService.ResetAlbumMetaInformation();
+            _metaService.GetAlbumMetaInformation(false);
+            RefreshAlbums();
+        }
+
+        [RelayCommand]
+        private void EjectTray() => _ripperService.EjectTray();
+
+        [RelayCommand]
+        private void TogglePane() => SplitPaneOpen = !SplitPaneOpen;
+
+        private async Task<RipSettings> BuildRipSettingsAsync(CancellationToken ct)
+        {
+            var albumCoverUri = await CoverViewer.GetCurrentCoverAsync(ct);
+
+            return new RipSettings
+            {
+                DriveOffset = DriveSettings.DriveOffset
+                , C2ErrorModeSetting = (DriveC2ErrorModeSetting)Enum.Parse(typeof(DriveC2ErrorModeSetting), DriveSettings.SelectedC2ErrorMode, true)
+                , CorrectionQuality = DriveSettings.SelectedSecureMode
+                , TestAndCopy = DriveSettings.TestAndCopyEnabled
+                , AlbumCoverUri = albumCoverUri
+                , EncodingConfiguration = EncodingTabs.GetEncodingConfigurations()
+            };
+        }
+
+        [RelayCommand]
+        private async Task ShowPathFormatAsync()
+        {
+            var meta = _metaService.SelectedMetadata;
+            await _dialogService.ShowPathFormatAsync(meta);
+
+            OutputPath = meta.PathStringFromFormat(_config.PathFormat, _config) ?? string.Empty;
+        }
+
+        [RelayCommand]
+        private async Task ShowUpdateAsync() => await _dialogService.ShowUpdateAsync();
 
         public void RefreshAlbums()
         {
@@ -172,9 +261,7 @@ namespace CUERipper.Avalonia.ViewModels
             AlbumReleases.Clear();
             DiscDrives.Clear();
 
-            ReadingProgress = 0;
-            ErrorProgress = 0;
-            TotalProgress = 0;
+            RipSession.ResetProgress();
         }
 
         internal void SetInitState()

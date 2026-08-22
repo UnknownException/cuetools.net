@@ -33,6 +33,9 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         public ObservableCollection<EncodingSectionViewModel> Tabs { get; } = [];
 
         [ObservableProperty]
+        private bool isReadOnly;
+
+        [ObservableProperty]
         private EncodingSectionViewModel? selectedTab;
 
         private bool CanAddTab => Tabs.Count < Constants.MaxEncodingTabs;

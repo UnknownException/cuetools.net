@@ -16,17 +16,13 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using CUERipper.Avalonia.Models;
-using CUETools.Codecs;
-using System.Threading.Tasks;
-
-namespace CUERipper.Avalonia.Services.Abstractions
+namespace CUERipper.Avalonia.Models
 {
-    public interface ICUEDialogService
+    public enum SessionState
     {
-        Task ShowOptionsAsync();
-        Task ShowEncoderOptionsAsync(IAudioEncoderSettings encoderSettings);
-        Task ShowPathFormatAsync(AlbumMetadata? meta);
-        Task ShowUpdateAsync();
+        Init
+        , Ready
+        , Ripping
+        , Done
     }
 }

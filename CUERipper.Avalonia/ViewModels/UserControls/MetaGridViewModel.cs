@@ -16,7 +16,6 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-
 using System;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;

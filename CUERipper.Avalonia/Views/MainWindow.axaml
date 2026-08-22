@@ -42,12 +42,14 @@
 			<StackPanel Grid.Row="0" Grid.Column="1" Margin="0,7,7,0">
 				<ComboBox Name="comboBoxDiscDrives"
 						AutomationProperties.Name="Disc drives"
+						IsEnabled="{Binding !RipSession.IsRipping}"
 						ItemsSource="{Binding DiscDrives}"
 						SelectedItem="{Binding SelectedDrive}"
 						HorizontalAlignment="Stretch"
 						Margin="5,5"/>
 				<ComboBox Name="comboBoxAlbumReleases"
 						AutomationProperties.Name="Album releases"
+						IsEnabled="{Binding RipSession.IsDiscIdle}"
 						ItemsSource="{Binding AlbumReleases}"
 						SelectedItem="{Binding SelectedAlbum}"
 						HorizontalAlignment="Stretch"
@@ -87,21 +89,28 @@
 
 			<Grid Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2">
 				<StackPanel Orientation="Horizontal">
-					<Button Name="buttonUpdate" HorizontalContentAlignment="Center" Width="24" Background="Transparent">
+					<Button Name="buttonUpdate"
+							Command="{Binding ShowUpdateCommand}"
+							IsVisible="{Binding UpdateAvailable}"
+							IsEnabled="{Binding !RipSession.IsRipping}"
+							HorizontalContentAlignment="Center"
+							Width="24"
+							Background="Transparent">
 						<ToolTip.Tip>
 							New update available for download!
 						</ToolTip.Tip>
+						<Image Source="{Binding IconUpdate}" Width="18" Height="18"/>
 					</Button>
-					<TextBlock Name="lblStatus" Text="Ready" Margin="5" VerticalAlignment="Center"/>
+					<TextBlock Name="lblStatus" Text="{Binding RipSession.Status}" Margin="5" VerticalAlignment="Center"/>
 				</StackPanel>
 				<StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Right">
-						<ProgressBar Minimum="0" Maximum="100" Value="{Binding ReadingProgress}" Width="150" HorizontalAlignment="Right" Margin="0,8,3,3">
+						<ProgressBar Minimum="0" Maximum="100" Value="{Binding RipSession.ReadingProgress}" Width="150" HorizontalAlignment="Right" Margin="0,8,3,3">
 							<ToolTip.Tip>
 								Progress of the current section being read from the Audio CD.
 							</ToolTip.Tip>
 						</ProgressBar>
-						<ProgressBar Minimum="0" Maximum="100" Value="{Binding TotalProgress}" Width="150" HorizontalAlignment="Right" Margin="3">
+						<ProgressBar Minimum="0" Maximum="100" Value="{Binding RipSession.TotalProgress}" Width="150" HorizontalAlignment="Right" Margin="3">
 							<ToolTip.Tip>
 								Total progress of the Audio CD currently being ripped.
 							</ToolTip.Tip>
@@ -109,25 +118,31 @@
 					</StackPanel>
 					<Button Name="buttonGo"
 							AutomationProperties.Name="Start ripping"
-							Content="Start" 
-							HorizontalContentAlignment="Center" 
-							Width="68" 
-							Background="Transparent"/>
-					<Button Name="buttonAbort" 
-							AutomationProperties.Name="Stop ripping"
-							Content="Cancel"
+							Command="{Binding RipSession.StartCommand}"
+							Content="Start"
+							IsVisible="{Binding !RipSession.IsRipping}"
+							IsEnabled="{Binding RipSession.IsDiscIdle}"
 							HorizontalContentAlignment="Center"
 							Width="68"
-							Background="Transparent"/>				
+							Background="Transparent"/>
+					<Button Name="buttonAbort"
+							AutomationProperties.Name="Stop ripping"
+							Command="{Binding RipSession.AbortCommand}"
+							Content="Cancel"
+							IsVisible="{Binding RipSession.IsRipping}"
+							HorizontalContentAlignment="Center"
+							Width="68"
+							Background="Transparent"/>
 				</StackPanel>
 			</Grid>
 		</Grid>
 		<SplitView.Pane>
 			<StackPanel>
-				<Button Name="buttonTogglePane" 
+				<Button Name="buttonTogglePane"
 						AutomationProperties.Name="Toggle advanced view"
-						Content="&lt;" 
-						Margin="5,13,0,5" 
+						Command="{Binding TogglePaneCommand}"
+						Content="{Binding TogglePaneGlyph}"
+						Margin="5,13,0,5"
 						Background="Transparent">
 					<ToolTip.Tip>
 						Show/hide an advanced view of the current drive and ripping information.
@@ -137,6 +152,7 @@
 					<Grid ColumnDefinitions="* Auto Auto" RowDefinitions="Auto Auto">
 						<ComboBox Name="comboBoxDiscDrivesSidePane"
 							AutomationProperties.Name="Disc drives"
+							IsEnabled="{Binding !RipSession.IsRipping}"
 							ItemsSource="{Binding DiscDrives}"
 							SelectedItem="{Binding SelectedDrive}"
 							HorizontalAlignment="Stretch"
@@ -145,24 +161,30 @@
 							Grid.Column="0"/>
 						<Button Name="buttonRefreshDrives"
 							AutomationProperties.Name="Refresh disc drives"
+							IsEnabled="{Binding !RipSession.IsRipping}"
 							Grid.Row="0"
 							Grid.Column="1"
 							Background="Transparent">
 							<ToolTip.Tip>
 								Refreshes the list of disc drives and the content of the inserted disc.
 							</ToolTip.Tip>
+							<Image Source="{Binding IconRefreshDrives}" Width="18" Height="18"/>
 						</Button>
 						<Button Name="buttonEject"
 								AutomationProperties.Name="Eject disc"
+								Command="{Binding EjectTrayCommand}"
+								IsEnabled="{Binding !RipSession.IsRipping}"
 								Grid.Row="0"
 								Grid.Column="2"
 								Background="Transparent">
 							<ToolTip.Tip>
 								Yeets the disc out of the drive.
 							</ToolTip.Tip>
+							<Image Source="{Binding IconEject}" Width="18" Height="18"/>
 						</Button>
 						<ComboBox Name="comboBoxAlbumReleasesSidePane"
 								AutomationProperties.Name="Album releases"
+								IsEnabled="{Binding RipSession.IsDiscIdle}"
 								ItemsSource="{Binding AlbumReleases}"
 								SelectedItem="{Binding SelectedAlbum}"
 								HorizontalAlignment="Stretch"
@@ -186,21 +208,27 @@
 						</ComboBox>						
 						<Button Name="buttonAdvancedSearch"
 								AutomationProperties.Name="Advanced album search"
+								Command="{Binding AdvancedSearchCommand}"
+								IsEnabled="{Binding RipSession.IsDiscIdle}"
 								Grid.Row="1"
 								Grid.Column="1"
 								Background="Transparent">
 							<ToolTip.Tip>
 								Advanced meta information search, takes longer than the default search.
 							</ToolTip.Tip>
+							<Image Source="{Binding IconAdvancedSearch}" Width="18" Height="18"/>
 						</Button>
 						<Button Name="buttonResetSearch"
 								AutomationProperties.Name="Reset album search"
+								Command="{Binding ResetSearchCommand}"
+								IsEnabled="{Binding RipSession.IsDiscIdle}"
 								Grid.Row="1"
 								Grid.Column="2"
 								Background="Transparent">
 							<ToolTip.Tip>
 								Resets the release list to the initial search state.
 							</ToolTip.Tip>
+							<Image Source="{Binding IconResetSearch}" Width="18" Height="18"/>
 						</Button>
 					</Grid>
 
@@ -231,7 +259,9 @@
 						<Button Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
 							Name="buttonPathFormat"
 							AutomationProperties.Name="Open path format window"
+							Command="{Binding ShowPathFormatCommand}"
 							Content="{Binding OutputPath}"
+							IsEnabled="{Binding !RipSession.IsRipping}"
 							Margin="5,0,0,5" 
 							HorizontalAlignment="Stretch" 
 							Background="Transparent"
@@ -241,7 +271,7 @@
 								MinWidth="0"
 								Minimum="0"
 								Maximum="100"
-								Value="{Binding ReadingProgress}"
+								Value="{Binding RipSession.ReadingProgress}"
 								Margin="5"
 								Height="18">
 							<ToolTip.Tip>
@@ -253,7 +283,7 @@
 								MinWidth="0"
 								Minimum="0"
 								Maximum="100"
-								Value="{Binding ErrorProgress}"
+								Value="{Binding RipSession.ErrorProgress}"
 								Margin="5"
 								Height="18"
 								Foreground="DarkRed">
@@ -266,7 +296,7 @@
 								MinWidth="0" 
 								Minimum="0" 
 								Maximum="100" 
-								Value="{Binding TotalProgress}"
+								Value="{Binding RipSession.TotalProgress}"
 								ShowProgressText="True" 
 								Margin="5"
 								Height="18">
@@ -277,15 +307,20 @@
 
 						<StackPanel Grid.Row="1" Grid.Column="2" Grid.RowSpan="2"
 								Orientation="Horizontal">
-							<Button Name="buttonGoSidePane" 
+							<Button Name="buttonGoSidePane"
 									AutomationProperties.Name="Start ripping"
-									Content="Start" 
-									Width="68" 
+									Command="{Binding RipSession.StartCommand}"
+									Content="Start"
+									IsVisible="{Binding !RipSession.IsRipping}"
+									IsEnabled="{Binding RipSession.IsDiscIdle}"
+									Width="68"
 									HorizontalContentAlignment="Center"/>
 							<Button Name="buttonAbortSidePane"
 									AutomationProperties.Name="Stop ripping"
-									Content="Cancel" 
-									Width="68" 
+									Command="{Binding RipSession.AbortCommand}"
+									Content="Cancel"
+									IsVisible="{Binding RipSession.IsRipping}"
+									Width="68"
 									HorizontalContentAlignment="Center"/>
 						</StackPanel>
 					</Grid>

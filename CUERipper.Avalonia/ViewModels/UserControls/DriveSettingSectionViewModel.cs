@@ -32,6 +32,9 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
     public partial class DriveSettingSectionViewModel : ViewModelBase, IDisposable
     {
         [ObservableProperty]
+        private bool isReadOnly = true;
+
+        [ObservableProperty]
         private int selectedSecureMode = Constants.SecureModeDefault;
         partial void OnSelectedSecureModeChanged(int oldValue, int newValue)
         {
