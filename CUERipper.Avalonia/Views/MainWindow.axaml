@@ -32,10 +32,10 @@
 			<StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
 				<Image Name="imageAlbumCover" Source="{Binding AlbumCoverImage}" Width="96" Height="96" Stretch="Uniform" Margin="12"/>
 				<StackPanel Orientation="Vertical" VerticalAlignment="Center" Margin="20,0,40,0">
-					<TextBlock Name="textAlbumTitle" Text="{Binding AlbumTitle}"/>
-					<TextBlock Name="textAlbumArtist" Text="{Binding AlbumArtist}"/>
-					<TextBlock Name="textAlbumYear" Text="{Binding AlbumYear}"/>
-					<TextBlock Name="textAlbumDisc" Text="{Binding AlbumDisc}"/>
+					<TextBlock Name="textAlbumTitle" Text="{Binding MetaGrid.AlbumTitle}"/>
+					<TextBlock Name="textAlbumArtist" Text="{Binding MetaGrid.AlbumArtist}"/>
+					<TextBlock Name="textAlbumYear" Text="{Binding MetaGrid.AlbumYear}"/>
+					<TextBlock Name="textAlbumDisc" Text="{Binding MetaGrid.AlbumDisc}"/>
 				</StackPanel>
 			</StackPanel>
 			
@@ -74,7 +74,7 @@
 					<uc:TrackGrid Name="trackGrid" />
 				</TabItem>
 				<TabItem Header="{Binding HeaderMetadata}" FontSize="20">
-					<uc:MetaGrid Name="metaGrid" />
+					<uc:MetaGrid DataContext="{Binding MetaGrid}" />
 				</TabItem>
 				<TabItem Header="Cover Art" FontSize="20">
 					<uc:CoverViewer Name="coverViewer" />

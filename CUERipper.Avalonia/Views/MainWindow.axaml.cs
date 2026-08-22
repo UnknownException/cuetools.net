@@ -30,6 +30,7 @@ using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels;
+using CUERipper.Avalonia.ViewModels.UserControls;
 using CUERipper.Avalonia.Views.UserControls;
 using CUETools.Processor;
 using CUETools.Ripper;
@@ -39,7 +40,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -99,6 +99,7 @@ namespace CUERipper.Avalonia.Views
             , IStringLocalizer<Language> localizer
             , IIconService iconService
             , IUpdateService updateService
+            , MainWindowViewModel viewModel
             , ILogger<MainWindow> logger)
         {
             _serviceProvider = serviceProvider;
@@ -115,7 +116,6 @@ namespace CUERipper.Avalonia.Views
 
             coverViewer.Init(serviceProvider);
             trackGrid.Init(serviceProvider);
-            metaGrid.Init(serviceProvider);
 
             Image BindImage(AppIcon icon) => new() { Source = iconService.GetIcon(icon), Width = 18, Height = 18 };
 
@@ -138,7 +138,6 @@ namespace CUERipper.Avalonia.Views
             buttonUpdate.IsVisible = false;
 
             coverViewer.ViewModel.PropertyChanged += OnCoverViewerPropertyChanged;
-            metaGrid.ViewModel.PropertyChanged += OnMetaGridPropertyChanged;
 
             driveNotificationService.SetCallbacks(OnDriveListRefreshRequestedCallback
                 , OnDriveUnmountedCallback
@@ -158,6 +157,7 @@ namespace CUERipper.Avalonia.Views
                 });
 
             SetUI(UIMode.Init);
+            DataContext = viewModel;
         }
 
         private async Task InitializeApplicationAsync()
@@ -166,7 +166,7 @@ namespace CUERipper.Avalonia.Views
 
             coverViewer.Clear();
             trackGrid.Clear();
-            metaGrid.Clear();
+            ViewModel.MetaGrid.Clear();
 
             ViewModel.SetInitState(coverViewer.ViewModel.CurrentCover);
 
@@ -312,11 +312,18 @@ namespace CUERipper.Avalonia.Views
 
 
             trackGrid.SetReadOnly(uiMode == UIMode.Ripping || uiMode == UIMode.Init);
-            metaGrid.SetReadOnly(uiMode == UIMode.Ripping || uiMode == UIMode.Init);
+
+            if (DataContext is MainWindowViewModel vm)
+            {
+                vm.MetaGrid.IsReadOnly = uiMode == UIMode.Ripping || uiMode == UIMode.Init;
+            }
 
             // BUG causes flickering on tab header when moving mouse over images
             // coverViewer.IsEnabled = uiMode != UIMode.Ripping;
-            coverViewer.ViewModel.IsReadOnly = uiMode == UIMode.Ripping;
+            if (coverViewer.DataContext is CoverViewerViewModel coverVm)
+            {
+                coverVm.IsReadOnly = uiMode == UIMode.Ripping;
+            }
 
             buttonTogglePane.Content = _config.DetailPaneOpened ? ">" : "<";
 
@@ -545,25 +552,6 @@ namespace CUERipper.Avalonia.Views
             if (coverViewer.ViewModel.CurrentCover != null)
             {
                 ViewModel.AlbumCoverImage = coverViewer.ViewModel.CurrentCover;
-            }
-        }
-
-        private void OnMetaGridPropertyChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            switch (e.PropertyName)
-            {
-                case nameof(MetaGrid.ViewModel.AlbumArtist):
-                    ViewModel.AlbumArtist = metaGrid.ViewModel.AlbumArtist;
-                    break;
-                case nameof(MetaGrid.ViewModel.AlbumTitle):
-                    ViewModel.AlbumTitle = metaGrid.ViewModel.AlbumTitle;
-                    break;
-                case nameof(MetaGrid.ViewModel.AlbumYear):
-                    ViewModel.AlbumYear = metaGrid.ViewModel.AlbumYear;
-                    break;
-                case nameof(MetaGrid.ViewModel.AlbumDisc):
-                    ViewModel.AlbumDisc = metaGrid.ViewModel.AlbumDisc;
-                    break;
             }
         }
 

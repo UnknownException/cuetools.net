@@ -27,7 +27,7 @@ using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
-using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Views.UserControls.Abstractions;
 #if NET47
 using CUERipper.Avalonia.Compatibility;
 #endif

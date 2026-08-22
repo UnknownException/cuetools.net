@@ -87,10 +87,7 @@ namespace CUERipper.Avalonia
 
                 desktop.Exit += (sender, args) => { OnApplicationShutdown(serviceProvider); };
 
-                var mainWindow = serviceProvider.GetRequiredService<MainWindow>();
-                mainWindow.DataContext = serviceProvider.GetRequiredService<MainWindowViewModel>();
-
-                desktop.MainWindow = mainWindow;
+                desktop.MainWindow = serviceProvider.GetRequiredService<MainWindow>();
             }
 
             base.OnFrameworkInitializationCompleted();
@@ -121,6 +118,7 @@ namespace CUERipper.Avalonia
             services.AddTransient<EncodingSectionViewModel>();
             services.AddTransient<Func<EncodingSectionViewModel>>(sp
                 => () => sp.GetRequiredService<EncodingSectionViewModel>());
+            services.AddTransient<MetaGridViewModel>();
 
             services.AddTransient<ICUEDialogService, CUEDialogService>();
             services.AddSingleton<IIconService, IconService>();

@@ -69,18 +69,6 @@ namespace CUERipper.Avalonia.ViewModels
         private Bitmap? albumCoverImage;
 
         [ObservableProperty]
-        private string albumTitle = string.Empty;
-
-        [ObservableProperty]
-        private string albumArtist = string.Empty;
-
-        [ObservableProperty]
-        private string albumYear = string.Empty;
-
-        [ObservableProperty]
-        private string albumDisc = string.Empty;
-
-        [ObservableProperty]
         private string outputPath = "Output Path";
 
         [ObservableProperty]
@@ -104,6 +92,7 @@ namespace CUERipper.Avalonia.ViewModels
 
         public DriveSettingSectionViewModel DriveSettings { get; }
         public EncodingTabContainerViewModel EncodingTabs { get; }
+        public MetaGridViewModel MetaGrid { get; }
 
         private readonly ICUEConfigFacade _config;
         private readonly ICUERipperService _ripperService;
@@ -116,7 +105,8 @@ namespace CUERipper.Avalonia.ViewModels
             , IStringLocalizer<Language> stringLocalizer
             , IIconService iconService
             , DriveSettingSectionViewModel driveSettings
-            , EncodingTabContainerViewModel encodingTabs)
+            , EncodingTabContainerViewModel encodingTabs
+            , MetaGridViewModel metaGrid)
         {
             _config = config;
             _ripperService = ripperService;
@@ -126,6 +116,7 @@ namespace CUERipper.Avalonia.ViewModels
 
             DriveSettings = driveSettings;
             EncodingTabs = encodingTabs;
+            MetaGrid = metaGrid;
         }
 
         public void RefreshAlbums()

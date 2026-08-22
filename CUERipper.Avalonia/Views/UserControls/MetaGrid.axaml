@@ -12,6 +12,7 @@
 		SelectionMode="Extended"
 		HeadersVisibility="None"
 		CanUserSortColumns="False"
+		IsReadOnly="{Binding IsReadOnly}"
 		ItemsSource="{Binding Metadata}">
 	</DataGrid>
 </UserControl>

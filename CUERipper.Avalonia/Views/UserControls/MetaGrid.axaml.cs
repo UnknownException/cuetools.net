@@ -16,44 +16,26 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using System;
-using Avalonia.Interactivity;
-using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Models;
-using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels.Bindings;
-using CUERipper.Avalonia.ViewModels.UserControls;
 using CUERipper.Avalonia.Views.UserControls.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Localization;
 
 namespace CUERipper.Avalonia.Views.UserControls;
 
 public sealed partial class MetaGrid : CUEGrid<MetaGridColumnKey
         , GridColumnDefinition<MetaGridColumnKey>
         , EditableFieldProxy
-    >, ICUEUserControl
+    >
 {
-    public MetaGridViewModel ViewModel => DataContext as MetaGridViewModel
-        ?? throw new ViewModelMismatchException(typeof(MetaGridViewModel), DataContext?.GetType());
-
     public MetaGrid()
     {
         InitializeComponent();
-    }
-
-    public void Init(IServiceProvider serviceProvider)
-    {
-        var metaService = serviceProvider.GetRequiredService<ICUEMetaService>();
-        var localizer = serviceProvider.GetRequiredService<IStringLocalizer<Language>>();
-
-        DataContext = new MetaGridViewModel(metaService, localizer);
 
         DefineColumns();
         InitGrid(metaGrid);
     }
 
-    public void DefineColumns()
+    private void DefineColumns()
     {
         Columns.Add(MetaGridColumnKey.Field, new GridColumnDefinition<MetaGridColumnKey> {
             Header = nameof(EditableFieldProxy.Field)
@@ -73,6 +55,4 @@ public sealed partial class MetaGrid : CUEGrid<MetaGridColumnKey
             , Create = CreateTextColumn
         });        
     }
-
-    public void Clear() => ViewModel.Clear();
 }

@@ -19,7 +19,7 @@
 using System;
 using Avalonia.Controls;
 
-namespace CUERipper.Avalonia.Models
+namespace CUERipper.Avalonia.Views.UserControls.Abstractions
 {
     public class GridColumnDefinition<T>
     {

@@ -17,21 +17,24 @@
 */
 #endregion
 
+using System;
 using System.Collections.ObjectModel;
-using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Extensions;
-using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels.Bindings;
+using CUETools.Processor;
 using Microsoft.Extensions.Localization;
 
 namespace CUERipper.Avalonia.ViewModels.UserControls
 {
-    public partial class MetaGridViewModel : ViewModelBase
+    public partial class MetaGridViewModel : ViewModelBase, IDisposable
     {
         public ObservableCollection<EditableFieldProxy> Metadata { get; } = [];
+
+        [ObservableProperty]
+        private bool isReadOnly = true;
 
         [ObservableProperty]
         private string albumTitle = string.Empty;
@@ -62,6 +65,9 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             Metadata.Clear();
         }
 
+        private string FormatAlbumDisc(CUEMetadata data)
+            => $"{_localizer["Main:Disc"]} {data.DiscNumber ?? "1"} {_localizer["Main:DiscSeperator"]} {data.TotalDiscs ?? "1"}";
+
         public void OnSelectedMetadataChanged(object? sender, SelectedMetadataChangedEventArgs e)
         {
             Clear();
@@ -72,7 +78,7 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             AlbumTitle = meta.Data.Title;
             AlbumArtist = meta.Data.Artist;
             AlbumYear = meta.Data.Year;
-            AlbumDisc = $"{_localizer["Main:Disc"]} {meta.Data.DiscNumber ?? "1"} {_localizer["Main:DiscSeperator"]} {meta.Data.TotalDiscs ?? "1"}";
+            AlbumDisc = FormatAlbumDisc(meta.Data);
 
             meta.Data.Title = string.IsNullOrWhiteSpace(meta.Data.Title) ? Constants.UnknownTitle : meta.Data.Title;
             meta.Data.Artist = string.IsNullOrWhiteSpace(meta.Data.Artist) ? Constants.UnknownArtist : meta.Data.Artist;
@@ -93,11 +99,11 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
                 })
                 , new (_localizer["Meta:CurrentDisc"], () => meta.Data.DiscNumber, x => { 
                     meta.Data.DiscNumber = x; 
-                    AlbumDisc = $"{_localizer["Main:Disc"]} {meta.Data.DiscNumber ?? "1"}/{meta.Data.TotalDiscs ?? "1"}"; 
+                    AlbumDisc = FormatAlbumDisc(meta.Data);
                 })
                 , new (_localizer["Meta:TotalDiscs"], () => meta.Data.TotalDiscs, x => {
                     meta.Data.TotalDiscs = x;
-                    AlbumDisc = $"{_localizer["Main:Disc"]} {meta.Data.DiscNumber ?? "1"}/{meta.Data.TotalDiscs ?? "1"}";
+                    AlbumDisc = FormatAlbumDisc(meta.Data);
                 })
                 , new (_localizer["Meta:DiscName"], () => meta.Data.DiscName, x => meta.Data.DiscName = x)
                 , new (_localizer["Meta:Label"], () => meta.Data.Label, x => meta.Data.Label = x)
@@ -107,6 +113,15 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
                 , new (_localizer["Meta:Country"], () => meta.Data.Country, x => meta.Data.Country = x)
                 , new (_localizer["Meta:Comment"], () => meta.Data.Comment, x => meta.Data.Comment = x)
             }.MoveAll(Metadata);
+        }
+
+        private bool _disposed = false;
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            _metaService.OnSelectedMetadataChanged -= OnSelectedMetadataChanged;
         }
     }
 }
