@@ -120,6 +120,7 @@ namespace CUERipper.Avalonia
                 => () => sp.GetRequiredService<EncodingSectionViewModel>());
             services.AddTransient<MetaGridViewModel>();
             services.AddTransient<TrackGridViewModel>();
+            services.AddTransient<CoverViewerViewModel>();
 
             services.AddTransient<ICUEDialogService, CUEDialogService>();
             services.AddSingleton<IIconService, IconService>();

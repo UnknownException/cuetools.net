@@ -16,7 +16,6 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Extensions;
@@ -66,9 +65,6 @@ namespace CUERipper.Avalonia.ViewModels
         }
 
         [ObservableProperty]
-        private Bitmap? albumCoverImage;
-
-        [ObservableProperty]
         private string outputPath = "Output Path";
 
         [ObservableProperty]
@@ -94,6 +90,7 @@ namespace CUERipper.Avalonia.ViewModels
         public EncodingTabContainerViewModel EncodingTabs { get; }
         public MetaGridViewModel MetaGrid { get; }
         public TrackGridViewModel TrackGrid { get; }
+        public CoverViewerViewModel CoverViewer { get; }
 
         private readonly ICUEConfigFacade _config;
         private readonly ICUERipperService _ripperService;
@@ -108,7 +105,8 @@ namespace CUERipper.Avalonia.ViewModels
             , DriveSettingSectionViewModel driveSettings
             , EncodingTabContainerViewModel encodingTabs
             , MetaGridViewModel metaGrid
-            , TrackGridViewModel trackGrid)
+            , TrackGridViewModel trackGrid
+            , CoverViewerViewModel coverViewer)
         {
             _config = config;
             _ripperService = ripperService;
@@ -120,6 +118,7 @@ namespace CUERipper.Avalonia.ViewModels
             EncodingTabs = encodingTabs;
             MetaGrid = metaGrid;
             TrackGrid = trackGrid;
+            CoverViewer = coverViewer;
         }
 
         public void RefreshAlbums()
@@ -178,7 +177,7 @@ namespace CUERipper.Avalonia.ViewModels
             TotalProgress = 0;
         }
 
-        internal bool SetInitState(Bitmap? albumCover)
+        internal void SetInitState()
         {
             Clear();
 
@@ -193,7 +192,6 @@ namespace CUERipper.Avalonia.ViewModels
             }
 
             SplitPaneOpen = _config.DetailPaneOpened;
-            AlbumCoverImage = albumCover;
 
             SelectedDrive = !string.IsNullOrWhiteSpace(_config.DefaultDrive)
                     && DiscDrives.Contains(_config.DefaultDrive)
@@ -204,8 +202,6 @@ namespace CUERipper.Avalonia.ViewModels
             {
                 RefreshAlbums();
             }
-
-            return true;
         }
     }
 }

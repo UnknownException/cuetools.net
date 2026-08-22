@@ -30,15 +30,12 @@ using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels;
-using CUERipper.Avalonia.ViewModels.UserControls;
-using CUERipper.Avalonia.Views.UserControls;
 using CUETools.Processor;
 using CUETools.Ripper;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -114,8 +111,6 @@ namespace CUERipper.Avalonia.Views
             DataContextChanged += OnDataContextChanged;
             Closing += OnWindowClosing;
 
-            coverViewer.Init(serviceProvider);
-
             Image BindImage(AppIcon icon) => new() { Source = iconService.GetIcon(icon), Width = 18, Height = 18 };
 
             buttonRefreshDrives.Click += OnRefreshDrivesClicked;
@@ -135,8 +130,6 @@ namespace CUERipper.Avalonia.Views
             buttonUpdate.Click += OnUpdateClicked;
             buttonUpdate.Content = BindImage(AppIcon.New);
             buttonUpdate.IsVisible = false;
-
-            coverViewer.ViewModel.PropertyChanged += OnCoverViewerPropertyChanged;
 
             driveNotificationService.SetCallbacks(OnDriveListRefreshRequestedCallback
                 , OnDriveUnmountedCallback
@@ -163,15 +156,15 @@ namespace CUERipper.Avalonia.Views
         {
             ViewModel.EncodingTabs.InitializeTabs();
 
-            coverViewer.Clear();
+            ViewModel.CoverViewer.Clear();
             ViewModel.TrackGrid.Clear();
             ViewModel.MetaGrid.Clear();
 
-            ViewModel.SetInitState(coverViewer.ViewModel.CurrentCover);
+            ViewModel.SetInitState();
 
             if (ViewModel.CDDriveAvailable && ViewModel.AlbumReleases.Any())
             {
-                coverViewer.Feed();
+                ViewModel.CoverViewer.Feed();
 
                 SetUI(UIMode.Ready);
 
@@ -227,7 +220,7 @@ namespace CUERipper.Avalonia.Views
             _metaService.FinalizeMetadata();
 
             lblStatus.Text = _localizer["Status:DownloadingAlbumCover"];
-            var albumCoverUri = await coverViewer.GetCurrentCoverAsync(_rippingCts.Token);
+            var albumCoverUri = await ViewModel.CoverViewer.GetCurrentCoverAsync(_rippingCts.Token);
 
             var ripSettings = new RipSettings
             {
@@ -314,13 +307,10 @@ namespace CUERipper.Avalonia.Views
             {
                 vm.TrackGrid.IsReadOnly = uiMode == UIMode.Ripping || uiMode == UIMode.Init;
                 vm.MetaGrid.IsReadOnly = uiMode == UIMode.Ripping || uiMode == UIMode.Init;
-            }
 
-            // BUG causes flickering on tab header when moving mouse over images
-            // coverViewer.IsEnabled = uiMode != UIMode.Ripping;
-            if (coverViewer.DataContext is CoverViewerViewModel coverVm)
-            {
-                coverVm.IsReadOnly = uiMode == UIMode.Ripping;
+                // BUG causes flickering on tab header when moving mouse over images
+                // coverViewer.IsEnabled = uiMode != UIMode.Ripping;
+                vm.CoverViewer.IsReadOnly = uiMode == UIMode.Ripping;
             }
 
             buttonTogglePane.Content = _config.DetailPaneOpened ? ">" : "<";
@@ -543,16 +533,6 @@ namespace CUERipper.Avalonia.Views
             }
         }
 
-        private void OnCoverViewerPropertyChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName != nameof(CoverViewer.ViewModel.CurrentCover)) return;
-
-            if (coverViewer.ViewModel.CurrentCover != null)
-            {
-                ViewModel.AlbumCoverImage = coverViewer.ViewModel.CurrentCover;
-            }
-        }
-
         private List<InputElement> GetDiscDriveControls()
             => [
                 comboBoxDiscDrives
@@ -578,8 +558,6 @@ namespace CUERipper.Avalonia.Views
         {
             if (_disposed == true) return;
             _disposed = true;
-
-            coverViewer.Dispose();
 
             if (!_rippingCts.IsCancellationRequested) _rippingCts.Cancel();
 
