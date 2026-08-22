@@ -115,7 +115,6 @@ namespace CUERipper.Avalonia.Views
             Closing += OnWindowClosing;
 
             coverViewer.Init(serviceProvider);
-            trackGrid.Init(serviceProvider);
 
             Image BindImage(AppIcon icon) => new() { Source = iconService.GetIcon(icon), Width = 18, Height = 18 };
 
@@ -165,7 +164,7 @@ namespace CUERipper.Avalonia.Views
             ViewModel.EncodingTabs.InitializeTabs();
 
             coverViewer.Clear();
-            trackGrid.Clear();
+            ViewModel.TrackGrid.Clear();
             ViewModel.MetaGrid.Clear();
 
             ViewModel.SetInitState(coverViewer.ViewModel.CurrentCover);
@@ -311,10 +310,9 @@ namespace CUERipper.Avalonia.Views
             driveSettingSection.IsEnabled = uiMode != UIMode.Ripping && uiMode != UIMode.Init;
 
 
-            trackGrid.SetReadOnly(uiMode == UIMode.Ripping || uiMode == UIMode.Init);
-
             if (DataContext is MainWindowViewModel vm)
             {
+                vm.TrackGrid.IsReadOnly = uiMode == UIMode.Ripping || uiMode == UIMode.Init;
                 vm.MetaGrid.IsReadOnly = uiMode == UIMode.Ripping || uiMode == UIMode.Init;
             }
 
@@ -402,10 +400,10 @@ namespace CUERipper.Avalonia.Views
                     viewModel.ErrorProgress = MathClamp.Clamp((int)errorPercentage, 0, 100);
                     viewModel.TotalProgress = (int)Math.Round((MathClamp.Clamp(currentProgress, 0, audioLength) / audioLength * 100));
 
-                    for (int i = 0; i < audioTrackCount && i < trackGrid.ViewModel.Tracks.Count; ++i)
+                    for (int i = 0; i < audioTrackCount && i < viewModel.TrackGrid.Tracks.Count; ++i)
                     {
                         var progressFraction = Math.Min(currentProgress / trackLength[i], 1f);
-                        trackGrid.ViewModel.Tracks[i].Progress = Convert.ToInt32(Math.Round(progressFraction * 100f));
+                        viewModel.TrackGrid.Tracks[i].Progress = Convert.ToInt32(Math.Round(progressFraction * 100f));
 
                         if (trackLength[i] >= currentProgress) break;
                         else currentProgress -= trackLength[i];

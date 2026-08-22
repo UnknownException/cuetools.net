@@ -71,7 +71,7 @@
 					
 			<TabControl Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
 				<TabItem Header="{Binding HeaderTracks}" FontSize="20">
-					<uc:TrackGrid Name="trackGrid" />
+					<uc:TrackGrid DataContext="{Binding TrackGrid}" />
 				</TabItem>
 				<TabItem Header="{Binding HeaderMetadata}" FontSize="20">
 					<uc:MetaGrid DataContext="{Binding MetaGrid}" />

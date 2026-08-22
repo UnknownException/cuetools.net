@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,18 +17,23 @@
 */
 #endregion
 
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CUERipper.Avalonia.Events;
-using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
 using Microsoft.Extensions.Localization;
 
 namespace CUERipper.Avalonia.ViewModels.UserControls
 {
-    public partial class TrackGridViewModel : ViewModelBase
+    public partial class TrackGridViewModel : ViewModelBase, IDisposable
     {
-        public ObservableCollection<TrackViewModel> Tracks { get; set; } = [];
+        public ObservableCollection<TrackViewModel> Tracks { get; } = [];
+
+        [ObservableProperty]
+        private bool isReadOnly = true;
+
         public string HeaderTitle { get => _localizer["TrackList:Title"]; }
         public string HeaderLength { get => _localizer["TrackList:Length"]; }
         public string HeaderProgress { get => _localizer["TrackList:Progress"]; }
@@ -74,6 +79,15 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
                     }
                 });
             }
+        }
+
+        private bool _disposed = false;
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            _metaService.OnSelectedMetadataChanged -= OnSelectedMetadataChanged;
         }
     }
 }

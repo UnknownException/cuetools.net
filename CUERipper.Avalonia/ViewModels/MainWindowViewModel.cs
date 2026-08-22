@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -93,6 +93,7 @@ namespace CUERipper.Avalonia.ViewModels
         public DriveSettingSectionViewModel DriveSettings { get; }
         public EncodingTabContainerViewModel EncodingTabs { get; }
         public MetaGridViewModel MetaGrid { get; }
+        public TrackGridViewModel TrackGrid { get; }
 
         private readonly ICUEConfigFacade _config;
         private readonly ICUERipperService _ripperService;
@@ -106,7 +107,8 @@ namespace CUERipper.Avalonia.ViewModels
             , IIconService iconService
             , DriveSettingSectionViewModel driveSettings
             , EncodingTabContainerViewModel encodingTabs
-            , MetaGridViewModel metaGrid)
+            , MetaGridViewModel metaGrid
+            , TrackGridViewModel trackGrid)
         {
             _config = config;
             _ripperService = ripperService;
@@ -117,6 +119,7 @@ namespace CUERipper.Avalonia.ViewModels
             DriveSettings = driveSettings;
             EncodingTabs = encodingTabs;
             MetaGrid = metaGrid;
+            TrackGrid = trackGrid;
         }
 
         public void RefreshAlbums()

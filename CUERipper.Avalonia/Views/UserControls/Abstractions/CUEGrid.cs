@@ -85,11 +85,6 @@ public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : Us
         menuItems.Add(newMenuItem("Paste range", OnPasteRange));
     }
 
-    public void SetReadOnly(bool state)
-    {
-        if (_dataGrid != null) _dataGrid.IsReadOnly = state;
-    }
-
     private IClipboard? Clipboard => TopLevel.GetTopLevel(this)?.Clipboard;
 
     private const string _columnSeparator = "\t";

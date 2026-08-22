@@ -1,6 +1,6 @@
-#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -119,6 +119,7 @@ namespace CUERipper.Avalonia
             services.AddTransient<Func<EncodingSectionViewModel>>(sp
                 => () => sp.GetRequiredService<EncodingSectionViewModel>());
             services.AddTransient<MetaGridViewModel>();
+            services.AddTransient<TrackGridViewModel>();
 
             services.AddTransient<ICUEDialogService, CUEDialogService>();
             services.AddSingleton<IIconService, IconService>();

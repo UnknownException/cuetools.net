@@ -1,6 +1,6 @@
-#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,37 +16,20 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using System;
-using Avalonia.Interactivity;
-using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Models;
-using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels.UserControls;
 using CUERipper.Avalonia.Views.UserControls.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Localization;
 
 namespace CUERipper.Avalonia.Views.UserControls;
 
 public sealed partial class TrackGrid : CUEGrid<TrackGridColumnKey
         , GridColumnDefinition<TrackGridColumnKey>
         , TrackViewModel
-    >, ICUEUserControl
+    >
 {
-    public TrackGridViewModel ViewModel => DataContext as TrackGridViewModel
-        ?? throw new ViewModelMismatchException(typeof(TrackGridViewModel), DataContext?.GetType());
-
     public TrackGrid()
     {
         InitializeComponent();
-    }
-
-    public void Init(IServiceProvider serviceProvider)
-    {
-        var metaService = serviceProvider.GetRequiredService<ICUEMetaService>();
-        var localizer = serviceProvider.GetRequiredService<IStringLocalizer<Language>>();
-
-        DataContext = new TrackGridViewModel(metaService, localizer);
 
         DefineColumns();
         InitGrid(trackGrid);
@@ -99,6 +82,4 @@ public sealed partial class TrackGrid : CUEGrid<TrackGridColumnKey
             , Create = CreateTextColumn
         });
     }
-
-    public void Clear() => ViewModel.Clear();
 }
