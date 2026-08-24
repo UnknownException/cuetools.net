@@ -18,7 +18,6 @@
 #endregion
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Events;
@@ -51,9 +50,12 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         private readonly InterruptibleJob _thumbnailJob = new();
 
         private readonly ICUEMetaService _metaService;
-        public CoverViewerViewModel(ICUEMetaService metaService)
+        private readonly IUIDispatcher _dispatcher;
+        public CoverViewerViewModel(ICUEMetaService metaService
+            , IUIDispatcher dispatcher)
         {
             _metaService = metaService;
+            _dispatcher = dispatcher;
 
             _placeholderCover = GetPlaceholderAlbumCover();
             CurrentCover = _placeholderCover;
@@ -113,7 +115,7 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
                             if (bitmap != null)
                             {
                                 cover.Bitmap150 = bitmap;
-                                Dispatcher.UIThread.Post(() =>
+                                _dispatcher.Post(() =>
                                 {
                                     AlbumCovers.Add(cover);
 

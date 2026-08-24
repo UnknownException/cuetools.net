@@ -123,6 +123,8 @@ namespace CUERipper.Avalonia
             services.AddTransient<CoverViewerViewModel>();
             services.AddTransient<RipSessionViewModel>();
 
+            services.AddSingleton<IUIDispatcher, UIDispatcher>();
+
             services.AddTransient<ICUEDialogService, CUEDialogService>();
             services.AddSingleton<IIconService, IconService>();
 

@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,15 +17,13 @@
 */
 #endregion
 using System;
+using System.Threading.Tasks;
 
-namespace CUERipper.Avalonia.Exceptions
+namespace CUERipper.Avalonia.Services.Abstractions
 {
-    public class NotInAvaloniaDesignModeException
-        : Exception
+    public interface IUIDispatcher
     {
-        public NotInAvaloniaDesignModeException()
-            : base("This code may not be executed outside of the Avalonia design mode.")
-        {
-        }
+        void Post(Action action);
+        Task<T> InvokeAsync<T>(Func<Task<T>> function);
     }
 }

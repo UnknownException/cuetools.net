@@ -15,7 +15,7 @@ A brand-new application with additional functionalities:
 - Multi-encoding – Encode tracks in multiple formats simultaneously.
 - Automatic ripping – Enables bulk ripping with no user input unless an error is detected.
 - Repair functionality – Same as in CUETools, for fixing errors in a rip.
-- Minimal native Linux support – Early compatibility for Linux users (no automated builds yet).
+- Native Linux support – Ripping and encoding on Linux.
 - Track progress – Displays per-track ripping progress.
 - Installer – Install CUETools/CUERipper to Program Files or user-specific directories without manually extracting zip files.
 - In-app updater – Update the application directly via GitHub, without manual downloads.

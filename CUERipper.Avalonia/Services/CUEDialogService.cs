@@ -22,7 +22,9 @@ using Avalonia.Controls.ApplicationLifetimes;
 using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
+using CUERipper.Avalonia.Views;
 using CUETools.Codecs;
+using CUETools.Processor;
 using System;
 using System.Threading.Tasks;
 
@@ -52,5 +54,11 @@ namespace CUERipper.Avalonia.Services
 
         public async Task ShowUpdateAsync()
             => await UpdateDialog.CreateAsync(Owner, _serviceProvider);
+
+        public async Task<bool> ShowMessageAsync(MessageBoxDefinition definition)
+            => await MessageBox.CreateAsync(Owner, _serviceProvider, definition);
+
+        public async Task<int> ShowRepairSelectionAsync(CUEToolsSourceFile[] sourceFiles)
+            => await RepairSelectionDialog.CreateAsync(Owner, _serviceProvider, sourceFiles);
     }
 }

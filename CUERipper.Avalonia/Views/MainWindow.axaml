@@ -10,7 +10,13 @@
         Icon="/Assets/cue2.ico"
 		Width="1024"
 		Height="685"
+        Classes.busy="{Binding RipSession.IsStopping}"
         Title="CUERipper 2.2.6">
+	<Window.Styles>
+		<Style Selector="Window.busy">
+			<Setter Property="Cursor" Value="Wait"/>
+		</Style>
+	</Window.Styles>
 	<SplitView IsPaneOpen="{Binding SplitPaneOpen}"
 			   PanePlacement="Right"
 			   DisplayMode="CompactOverlay"
@@ -161,6 +167,7 @@
 							Grid.Column="0"/>
 						<Button Name="buttonRefreshDrives"
 							AutomationProperties.Name="Refresh disc drives"
+							Command="{Binding RefreshSessionCommand}"
 							IsEnabled="{Binding !RipSession.IsRipping}"
 							Grid.Row="0"
 							Grid.Column="1"

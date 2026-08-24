@@ -19,12 +19,16 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Compatibility;
+using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
+using CUETools.Processor;
+using CUETools.Ripper;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -33,6 +37,8 @@ namespace CUERipper.Avalonia.ViewModels
     public sealed partial class RipSessionViewModel : ViewModelBase, IDisposable
     {
         public delegate Task<RipSettings> RipSettingsFactory(CancellationToken ct);
+
+        public event EventHandler<TrackProgressEventArgs>? OnTrackProgress;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsRipping))]
@@ -56,7 +62,10 @@ namespace CUERipper.Avalonia.ViewModels
         [ObservableProperty]
         private int errorProgress;
 
-        public bool IsBusy { get => _rippingTask != null && !_rippingTask.IsCompleted; }
+        public bool HasRunningTask { get => _rippingTask != null && !_rippingTask.IsCompleted; }
+
+        [ObservableProperty]
+        private bool isStopping;
 
         private RipSettingsFactory? _buildSettings;
         private Task? _rippingTask;
@@ -64,18 +73,30 @@ namespace CUERipper.Avalonia.ViewModels
 
         private readonly ICUERipperService _ripperService;
         private readonly ICUEMetaService _metaService;
+        private readonly ICUEDialogService _dialogService;
+        private readonly IUIDispatcher _dispatcher;
         private readonly IStringLocalizer _localizer;
         private readonly ILogger _logger;
 
         public RipSessionViewModel(ICUERipperService ripperService
             , ICUEMetaService metaService
+            , ICUEDialogService dialogService
+            , IUIDispatcher dispatcher
             , IStringLocalizer<Language> localizer
             , ILogger<RipSessionViewModel> logger)
         {
             _ripperService = ripperService;
             _metaService = metaService;
+            _dialogService = dialogService;
+            _dispatcher = dispatcher;
             _localizer = localizer;
             _logger = logger;
+
+            _ripperService.OnSecondaryProgress += RepairStatusCallback;
+            _ripperService.OnRepairSelection += RepairSelectionCallback;
+            _ripperService.OnFinish += RipperFinishedCallback;
+            _ripperService.OnDirectoryConflict += DirectoryConflictCallback;
+            _ripperService.OnRippingProgress += RipperStatusCallback;
         }
 
         public void UseSettingsFactory(RipSettingsFactory factory)
@@ -89,7 +110,7 @@ namespace CUERipper.Avalonia.ViewModels
         {
             if (_buildSettings == null) throw new NotInitializedException(nameof(RipSettingsFactory));
 
-            if (IsBusy)
+            if (HasRunningTask)
             {
                 _logger.LogError("Ripping already in progress, start shouldn't be reachable.");
                 return;
@@ -131,7 +152,7 @@ namespace CUERipper.Avalonia.ViewModels
         [RelayCommand(CanExecute = nameof(CanAbort))]
         private async Task AbortAsync()
         {
-            if (!IsBusy)
+            if (!HasRunningTask)
             {
                 _logger.LogError("No rip in progress, abort shouldn't be reachable.");
                 return;
@@ -146,17 +167,19 @@ namespace CUERipper.Avalonia.ViewModels
             Mode = SessionState.Done;
         }
 
-        public void Cancel()
+        public async Task CancelAsync()
         {
-            if (!IsBusy) return;
+            if (!HasRunningTask) return;
 
             _rippingCts.Cancel();
+            await WaitForCompletionAsync();
         }
 
-        public async Task WaitForCompletionAsync()
+        private async Task WaitForCompletionAsync()
         {
             if (_rippingTask == null) return;
 
+            IsStopping = true;
             try
             {
                 await _rippingTask;
@@ -169,11 +192,13 @@ namespace CUERipper.Avalonia.ViewModels
             {
                 _logger.LogError(ex, "Ripping task faulted while waiting for it to finish.");
             }
+            finally
+            {
+                IsStopping = false;
+            }
         }
 
-        public void ReportStatus(string status) => Status = status;
-
-        public void ReportProgress(int reading, int total, int error)
+        private void ReportProgress(int reading, int total, int error)
         {
             ReadingProgress = reading;
             TotalProgress = total;
@@ -181,6 +206,127 @@ namespace CUERipper.Avalonia.ViewModels
         }
 
         public void ResetProgress() => ReportProgress(0, 0, 0);
+
+        #region Ripping Callbacks
+
+        private void RepairStatusCallback(object? sender, CUEToolsProgressEventArgs args)
+        {
+            string status = args.status;
+            _dispatcher.Post(() =>
+            {
+                Status = status;
+            });
+        }
+
+        private void RepairSelectionCallback(object? sender, CUEToolsSelectionEventArgs args)
+        {
+            if (args.choices is CUEToolsSourceFile[] sourceFiles)
+            {
+                // TODO figure out how to NOT do it like this
+                // https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md#avoid-using-taskresult-and-taskwait
+                var result = Task.Run(() => _dispatcher.InvokeAsync(
+                    () => _dialogService.ShowRepairSelectionAsync(sourceFiles)
+                )).GetAwaiter().GetResult();
+
+                args.selection = result;
+            }
+        }
+
+        private void RipperFinishedCallback(object? sender, RipperFinishedEventArgs e)
+        {
+            var status = e.Status;
+            var content = e.PopupContent;
+
+            _dispatcher.Post(async () =>
+            {
+                Mode = SessionState.Done;
+                Status = status;
+
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    var messageBox = new MessageBoxDefinition(status, content, MessageBoxType.Ok);
+                    await _dialogService.ShowMessageAsync(messageBox);
+                }
+            });
+        }
+
+        private void DirectoryConflictCallback(object? sender, DirectoryConflictEventArgs e)
+        {
+            // TODO figure out how to NOT do it like this
+            // https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md#avoid-using-taskresult-and-taskwait            
+            var result = Task.Run(() => _dispatcher.InvokeAsync(
+                () =>
+                {
+                    var messageBox = new MessageBoxDefinition(_localizer["Warning:DirectoryExists"]
+                        , _localizer["Warning:QuestionOverwriteDestination"]
+                        , MessageBoxType.YesNo
+                    );
+
+                    return _dialogService.ShowMessageAsync(messageBox);
+                }
+            )).GetAwaiter().GetResult();
+
+            e.CanModifyContent = result;
+        }
+
+        private void RipperStatusCallback(object? sender, ReadProgressArgs args)
+        {
+            if (sender is not ICDRipper audioSource) return;
+
+            int audioLength = (int)audioSource.TOC.AudioLength;
+            int correctionQuality = audioSource.CorrectionQuality;
+            int audioTrackCount = audioSource.TOC.TrackCount;
+            var trackLength = new List<int>();
+            for (int i = 0; i < audioTrackCount; ++i)
+            {
+                trackLength.Add((int)audioSource.TOC[i + 1].Length);
+            }
+
+            int processed = args.Position - args.PassStart;
+            TimeSpan elapsed = DateTime.Now - args.PassTime;
+            double speed = elapsed.TotalSeconds > 0 ? processed / elapsed.TotalSeconds / 75 : 1.0;
+
+            double trackPercentage = (double)(args.Position - args.PassStart) / (args.PassEnd - args.PassStart);
+            string retry = args.Pass > 0 ? $" ({_localizer["Status:Retry"]} {args.Pass})" : "";
+            string status = (elapsed.TotalSeconds > 0 && args.Pass >= 0) ?
+                string.Format("{0} @{1:00.00}x{2}...", args.Action, speed, retry) :
+                string.Format("{0}{1}...", args.Action, retry);
+
+            _dispatcher.Post(() =>
+            {
+                int passTotalLength = args.PassEnd - args.PassStart;
+                double correctionLength = (double)passTotalLength / (correctionQuality + 1);
+                double correctionProcessed = (double)processed / (correctionQuality + 1) + correctionLength * Math.Min(args.Pass, correctionQuality);
+                double currentProgress = args.PassStart + correctionProcessed;
+
+                double errorRatio = Math.Log(args.ErrorsCount / 10.0 + 1);
+                double passRatio = Math.Log((args.PassEnd - args.PassStart) / 10.0 + 1);
+                double errorPercentage = (errorRatio / passRatio) * 100;
+
+                Status = currentProgress >= audioLength
+                    ? _localizer["Status:Finalizing"]
+                    : status;
+
+                ReportProgress(
+                    reading: MathClamp.Clamp((int)(trackPercentage * 100), 0, 100)
+                    , total: (int)Math.Round((MathClamp.Clamp(currentProgress, 0, audioLength) / audioLength * 100))
+                    , error: MathClamp.Clamp((int)errorPercentage, 0, 100));
+
+                var trackProgress = new List<int>(audioTrackCount);
+                for (int i = 0; i < audioTrackCount; ++i)
+                {
+                    var progressFraction = Math.Min(currentProgress / trackLength[i], 1f);
+                    trackProgress.Add(Convert.ToInt32(Math.Round(progressFraction * 100f)));
+
+                    if (trackLength[i] >= currentProgress) break;
+                    else currentProgress -= trackLength[i];
+                }
+
+                OnTrackProgress?.Invoke(this, new TrackProgressEventArgs(trackProgress));
+            });
+        }
+
+        #endregion
 
         private bool _disposed = false;
         public void Dispose()
@@ -190,7 +336,7 @@ namespace CUERipper.Avalonia.ViewModels
 
             if (!_rippingCts.IsCancellationRequested) _rippingCts.Cancel();
 
-            if (IsBusy)
+            if (HasRunningTask)
             {
                 try
                 {
@@ -203,6 +349,12 @@ namespace CUERipper.Avalonia.ViewModels
             }
 
             _rippingCts.Dispose();
+
+            _ripperService.OnSecondaryProgress -= RepairStatusCallback;
+            _ripperService.OnRepairSelection -= RepairSelectionCallback;
+            _ripperService.OnFinish -= RipperFinishedCallback;
+            _ripperService.OnDirectoryConflict -= DirectoryConflictCallback;
+            _ripperService.OnRippingProgress -= RipperStatusCallback;
 
             GC.SuppressFinalize(this);
         }

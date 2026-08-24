@@ -20,12 +20,15 @@ using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Configuration.Abstractions;
+using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Services;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels.UserControls;
-using Microsoft.Extensions.Localization;
 using CUETools.Ripper;
+using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -35,7 +38,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.ViewModels
 {
-    public partial class MainWindowViewModel : ViewModelBase
+    public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         public ObservableCollection<string> DiscDrives { get; set; } = [];
 
@@ -73,22 +76,6 @@ namespace CUERipper.Avalonia.ViewModels
         [ObservableProperty]
         private string outputPath = "Output Path";
 
-        private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName != nameof(RipSessionViewModel.Mode)) return;
-
-            TrackGrid.IsReadOnly = !RipSession.IsDiscIdle;
-            MetaGrid.IsReadOnly = !RipSession.IsDiscIdle;
-            DriveSettings.IsReadOnly = !RipSession.IsDiscIdle;
-
-            CoverViewer.IsReadOnly = RipSession.IsRipping;
-            EncodingTabs.IsReadOnly = RipSession.IsRipping;
-
-            // Ripping and Done keep whatever the ripper last reported
-            if (RipSession.Mode == SessionState.Init) RipSession.Status = string.Empty;
-            else if (RipSession.Mode == SessionState.Ready) RipSession.Status = _localizer["Status:Ready"];
-        }
-
         [ObservableProperty]
         private bool updateAvailable;
 
@@ -124,12 +111,19 @@ namespace CUERipper.Avalonia.ViewModels
         private readonly IStringLocalizer _localizer;
         private readonly IIconService _iconService;
         private readonly ICUEDialogService _dialogService;
+        private readonly IUpdateService _updateService;
+        private readonly IUIDispatcher _dispatcher;
+        private readonly ILogger _logger;
         public MainWindowViewModel(ICUEConfigFacade config
             , ICUERipperService ripperService
             , ICUEMetaService metaService
             , IStringLocalizer<Language> stringLocalizer
             , IIconService iconService
             , ICUEDialogService dialogService
+            , IUpdateService updateService
+            , IUIDispatcher dispatcher
+            , IDriveNotificationService driveNotificationService
+            , ILogger<MainWindowViewModel> logger
             , DriveSettingSectionViewModel driveSettings
             , EncodingTabContainerViewModel encodingTabs
             , MetaGridViewModel metaGrid
@@ -143,6 +137,9 @@ namespace CUERipper.Avalonia.ViewModels
             _localizer = stringLocalizer;
             _iconService = iconService;
             _dialogService = dialogService;
+            _updateService = updateService;
+            _dispatcher = dispatcher;
+            _logger = logger;
 
             DriveSettings = driveSettings;
             EncodingTabs = encodingTabs;
@@ -151,8 +148,22 @@ namespace CUERipper.Avalonia.ViewModels
             CoverViewer = coverViewer;
             RipSession = ripSession;
 
+            driveNotificationService.SetCallbacks(OnDriveListRefreshRequestedCallback
+                , OnDriveUnmountedCallback
+                , OnDriveMountedCallback);
+
+            _ripperService.OnSelectedDriveChanged += (object? _, DriveChangedEventArgs e)
+                => _dispatcher.Post(async () => {
+                    // Prevent double initializing and only re-initialize when a new drive has been selected
+                    if (e.PreviousDrive != Constants.NullDrive && e.PreviousDrive != e.NextDrive)
+                    {
+                        await RefreshSessionAsync();
+                    }
+                });
+
             RipSession.UseSettingsFactory(BuildRipSettingsAsync);
             RipSession.PropertyChanged += OnSessionPropertyChanged;
+            RipSession.OnTrackProgress += OnTrackProgress;
 
             IconRefreshDrives = iconService.GetIcon(AppIcon.Disc);
             IconAdvancedSearch = iconService.GetIcon(AppIcon.Search);
@@ -210,7 +221,7 @@ namespace CUERipper.Avalonia.ViewModels
         [RelayCommand]
         private async Task ShowUpdateAsync() => await _dialogService.ShowUpdateAsync();
 
-        public void RefreshAlbums()
+        private bool RefreshAlbums()
         {
             AlbumReleases.Clear();
 
@@ -245,6 +256,7 @@ namespace CUERipper.Avalonia.ViewModels
             ).MoveAll(AlbumReleases);
 
             SelectedAlbum = AlbumReleases.Any() ? AlbumReleases[0] : null;
+            return SelectedAlbum != null;
         }
 
         private AlbumMetadata? GetSelectedAlbumMeta()
@@ -256,17 +268,24 @@ namespace CUERipper.Avalonia.ViewModels
             return index < albumMetaInformation.Count ? albumMetaInformation.ElementAt(index) : null;
         }
 
-        private void Clear()
+        private void ClearSession()
         {
             AlbumReleases.Clear();
             DiscDrives.Clear();
 
+            CoverViewer.Clear();
+            TrackGrid.Clear();
+            MetaGrid.Clear();
+
             RipSession.ResetProgress();
         }
 
-        internal void SetInitState()
+        private void InitializeSession()
         {
-            Clear();
+            if (DiscDrives.Count != 0)
+            {
+                throw new InvalidOperationException($"{nameof(InitializeSession)} requires a cleared state, call {nameof(ClearSession)} first.");
+            }
 
             foreach (var driveName in _ripperService.QueryAvailableDriveInformation())
             {
@@ -276,19 +295,154 @@ namespace CUERipper.Avalonia.ViewModels
             if (DiscDrives.Count == 0)
             {
                 DiscDrives.Add(Constants.NoCDDriveFound);
+                _logger.LogInformation(Constants.NoCDDriveFound);
             }
-
-            SplitPaneOpen = _config.DetailPaneOpened;
 
             SelectedDrive = !string.IsNullOrWhiteSpace(_config.DefaultDrive)
                     && DiscDrives.Contains(_config.DefaultDrive)
                 ? _config.DefaultDrive
                 : DiscDrives[0];
 
-            if (DiscDrives[0] != Constants.NoCDDriveFound)
+            RipSession.Mode = SessionState.Init;
+
+            if (DiscDrives[0] == Constants.NoCDDriveFound) return;
+
+            if(RefreshAlbums())
             {
-                RefreshAlbums();
+                CoverViewer.Feed();
+                RipSession.Mode = SessionState.Ready;
             }
+        }
+
+        private async Task StartAutomaticRipAsync()
+        {
+            if (RipSession.Mode != SessionState.Ready) return;
+            if (_metaService.SelectedMetadata == null) return;
+
+            await RipSession.StartCommand.ExecuteAsync(null);
+        }
+
+        [RelayCommand]
+        public async Task RefreshSessionAsync()
+        {
+            ClearSession();
+            InitializeSession();
+
+            if (_config.AutomaticRip) await StartAutomaticRipAsync();
+        }
+
+        public async Task CheckForUpdateAsync()
+        {
+            var fetched = await _updateService.FetchAsync();
+            UpdateAvailable = fetched && _updateService.UpdateMetadata.UpdateAvailable();
+        }
+
+        public void Initialize()
+        {
+            EncodingTabs.InitializeTabs();
+            SplitPaneOpen = _config.DetailPaneOpened;
+        }
+
+        public async Task<bool> TryShutdownAsync()
+        {
+            if (RipSession.HasRunningTask)
+            {
+                var messageBox = new MessageBoxDefinition(_localizer["Warning:CantClose"]
+                    , _localizer["Warning:RipInProgress"]
+                    , MessageBoxType.YesNo
+                );
+
+                var result = await _dialogService.ShowMessageAsync(messageBox);
+                if (!result) return false;
+
+                await RipSession.CancelAsync();
+            }
+
+            EncodingTabs.PersistTabs();
+            return true;
+        }
+
+        #region Drive Callbacks
+
+        private void OnDriveListRefreshRequestedCallback()
+        {
+            _dispatcher.Post(async () =>
+            {
+                if (RipSession.HasRunningTask)
+                {
+                    var drives = _ripperService.QueryAvailableDriveInformation().Select(d => d.Key);
+                    if (drives.Contains(_ripperService.SelectedDrive)) return;
+
+                    await RipSession.CancelAsync();
+                }
+
+                await RefreshSessionAsync();
+            });
+        }
+
+        private void OnDriveUnmountedCallback(char driveLetter)
+        {
+            _dispatcher.Post(async () =>
+            {
+                if (driveLetter == _ripperService.SelectedDrive)
+                {
+                    if (RipSession.HasRunningTask)
+                    {
+                        RipSession.Status = _localizer["Status:DiscUnexpectedRemove"];
+                        await RipSession.CancelAsync();
+                    }
+                    else
+                    {
+                        RipSession.Status = _localizer["Status:DiscRemoved"];
+                    }
+
+                    RipSession.Mode = SessionState.Init;
+                }
+            });
+        }
+
+        private void OnDriveMountedCallback(char driveLetter)
+        {
+            _dispatcher.Post(async () =>
+            {
+                if (driveLetter == _ripperService.SelectedDrive) await RefreshSessionAsync();
+            });
+        }
+
+        #endregion
+
+        private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(RipSessionViewModel.Mode)) return;
+
+            TrackGrid.IsReadOnly = !RipSession.IsDiscIdle;
+            MetaGrid.IsReadOnly = !RipSession.IsDiscIdle;
+            DriveSettings.IsReadOnly = !RipSession.IsDiscIdle;
+
+            CoverViewer.IsReadOnly = RipSession.IsRipping;
+            EncodingTabs.IsReadOnly = RipSession.IsRipping;
+
+            // Init, Ripping and Done keep whatever the ripper last reported
+            if (RipSession.Mode == SessionState.Ready) RipSession.Status = _localizer["Status:Ready"];
+        }
+
+        private void OnTrackProgress(object? sender, TrackProgressEventArgs e)
+        {
+            int boundary = Math.Min(e.TrackProgress.Count, TrackGrid.Tracks.Count);
+            for(int i = 0; i < boundary; ++i)
+            {
+                TrackGrid.Tracks[i].Progress = e.TrackProgress[i];
+            }
+        }
+
+        private bool _disposed = false;
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            RipSession.PropertyChanged -= OnSessionPropertyChanged;
+            RipSession.OnTrackProgress -= OnTrackProgress;
         }
     }
 }

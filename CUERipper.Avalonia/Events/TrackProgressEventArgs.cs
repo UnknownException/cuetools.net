@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,14 +17,17 @@
 */
 #endregion
 using System;
+using System.Collections.Generic;
 
-namespace CUERipper.Avalonia.Exceptions
+namespace CUERipper.Avalonia.Events
 {
-    public class UnexpectedParentException : Exception
+    public class TrackProgressEventArgs : EventArgs
     {
-        public UnexpectedParentException(Type expected, Type? actual)
-            : base($"Expected a parent of type '{expected.Name}', but received a parent of type '{actual?.Name}'.")
+        public IReadOnlyList<int> TrackProgress;
+
+        public TrackProgressEventArgs(IReadOnlyList<int> trackProgress)
         {
+            TrackProgress = trackProgress;
         }
     }
 }

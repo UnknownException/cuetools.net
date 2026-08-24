@@ -16,20 +16,19 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using CUERipper.Avalonia.Models;
-using CUETools.Codecs;
-using CUETools.Processor;
+using Avalonia.Threading;
+using CUERipper.Avalonia.Services.Abstractions;
+using System;
 using System.Threading.Tasks;
 
-namespace CUERipper.Avalonia.Services.Abstractions
+namespace CUERipper.Avalonia.Services
 {
-    public interface ICUEDialogService
+    public sealed class UIDispatcher : IUIDispatcher
     {
-        Task ShowOptionsAsync();
-        Task ShowEncoderOptionsAsync(IAudioEncoderSettings encoderSettings);
-        Task ShowPathFormatAsync(AlbumMetadata? meta);
-        Task ShowUpdateAsync();
-        Task<bool> ShowMessageAsync(MessageBoxDefinition definition);
-        Task<int> ShowRepairSelectionAsync(CUEToolsSourceFile[] sourceFiles);
+        public void Post(Action action)
+            => Dispatcher.UIThread.Post(action);
+
+        public Task<T> InvokeAsync<T>(Func<Task<T>> function)
+            => Dispatcher.UIThread.InvokeAsync(function);
     }
 }
