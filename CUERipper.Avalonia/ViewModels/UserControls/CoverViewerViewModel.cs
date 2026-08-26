@@ -93,11 +93,11 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
 
             var orderedCovers = new[]
             { 
-            // Primary artwork (Front cover)
-            unorderedCovers.Where(x => x.IsPrimary)
-            // Secondary artwork (Photo of CD, back cover, etc.)
-            , unorderedCovers.Where(x => !x.IsPrimary)
-        };
+                // Primary artwork (Front cover)
+                unorderedCovers.Where(x => x.IsPrimary)
+                // Secondary artwork (Photo of CD, back cover, etc.)
+                , unorderedCovers.Where(x => !x.IsPrimary)
+            };
 
             _thumbnailJob.Run(async (CancellationToken ct) =>
             {
@@ -165,6 +165,8 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             await TryWaitForAtLeastOneThumbnail(ct);
 
             var cover = AlbumCovers.Where(x => x.IsSelected).FirstOrDefault();
+            cover ??= AlbumCovers.Where(x => x.IsPrimary).FirstOrDefault();
+
             if (cover?.Uri == null) return string.Empty;
 
             await _metaService.FetchImageAsync(cover.Uri, ct);

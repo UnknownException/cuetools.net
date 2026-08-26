@@ -61,6 +61,6 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             => Equals(obj as CoverViewAlbumViewModel);
 
         public override int GetHashCode()
-            => (Uri?.GetHashCode() ?? 0) * 31 ^ Uri150?.GetHashCode() ?? 0;
+            => (Uri?.GetHashCode() ?? 0) * 31 ^ (Uri150?.GetHashCode() ?? 0);
     }
 }

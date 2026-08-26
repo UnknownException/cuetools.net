@@ -294,6 +294,7 @@ namespace CUERipper.Avalonia.Services
 
             var cueSheet = new CUESheet(_config.ToCUEConfig());
             var stopRegistration = ct.Register(() => cueSheet.Stop());
+            var ejectDisc = false;
 
             try
             {
@@ -374,6 +375,8 @@ namespace CUERipper.Avalonia.Services
                     cueSheet.ArTestVerify = null;
                 }
 
+                ejectDisc = _config.EjectAfterRip;
+
                 _logger.LogInformation("Ripping has started.");
 
                 cueSheet.Go();
@@ -452,7 +455,7 @@ namespace CUERipper.Avalonia.Services
                     TryCleanup(() => audioSource.DisableEjectDisc(false), "Failed to re-enable disc ejecting.");
                 }
 
-                if (_config.EjectAfterRip)
+                if (ejectDisc)
                 {
                     _logger.LogInformation("Ejecting disc from drive.");
 

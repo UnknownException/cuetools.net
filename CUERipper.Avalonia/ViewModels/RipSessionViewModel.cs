@@ -116,6 +116,8 @@ namespace CUERipper.Avalonia.ViewModels
                 return;
             }
 
+            Mode = SessionState.Ripping;
+
             _metaService.FinalizeMetadata();
 
             if (!_rippingCts.TryReset())
@@ -137,8 +139,6 @@ namespace CUERipper.Avalonia.ViewModels
                 return;
             }
 
-            Mode = SessionState.Ripping;
-
             _rippingTask = _ripperService.StartRipProcess(settings, _rippingCts.Token);
 
             // Don't let the error be swallowed
@@ -152,12 +152,6 @@ namespace CUERipper.Avalonia.ViewModels
         [RelayCommand(CanExecute = nameof(CanAbort))]
         private async Task AbortAsync()
         {
-            if (!HasRunningTask)
-            {
-                _logger.LogError("No rip in progress, abort shouldn't be reachable.");
-                return;
-            }
-
             _rippingCts.Cancel();
             Status = _localizer["Status:RipperStop"];
 

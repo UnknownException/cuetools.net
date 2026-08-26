@@ -143,7 +143,7 @@ public abstract class CUEGrid<TColumnKey, TColumnDefinition, TRowViewModel> : Us
         var text = await Clipboard.GetTextAsync();
         if (string.IsNullOrWhiteSpace(text)) return;
 
-        var rows = text.Split(Environment.NewLine)
+        var rows = text!.Split(Environment.NewLine)
             .Where(x => x != GetTableExportHeader());
 
         var clipboardColumns = Columns.Where(c => c.Value.Clipboard).ToList();

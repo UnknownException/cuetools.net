@@ -239,6 +239,10 @@ namespace CUERipper.Avalonia.Services
                 bitmap.Save(filePath);
                 return bitmap;
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to retrieve album cover from {Uri}", uri);
