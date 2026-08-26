@@ -1,6 +1,6 @@
-#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@ using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.ViewModels;
-using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 #if NET47
@@ -30,7 +29,7 @@ using System.Media;
 
 namespace CUERipper.Avalonia.Views;
 
-public partial class MessageBox : Window, IDisposable
+public partial class MessageBox : Window
 {
     public MessageBoxViewModel ViewModel => DataContext as MessageBoxViewModel
         ?? throw new ViewModelMismatchException(typeof(MessageBoxViewModel), DataContext?.GetType());
@@ -76,15 +75,5 @@ public partial class MessageBox : Window, IDisposable
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MessageBoxViewModel.Affirmative)) Close();
-    }
-
-    public void Dispose()
-    {
-        if (DataContext is MessageBoxViewModel viewModel)
-        {
-            viewModel.PropertyChanged -= OnViewModelPropertyChanged;
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

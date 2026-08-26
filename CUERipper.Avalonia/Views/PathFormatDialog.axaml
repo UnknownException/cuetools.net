@@ -24,21 +24,30 @@
                     Orientation="Vertical"
                     HorizontalAlignment="Right"
                     Margin="5">
-			<Button Name="buttonNew" 
-					Content="+" 
+			<Button Name="buttonNew"
+					AutomationProperties.Name="Add path format"
+					Command="{Binding NewFormatCommand}"
 					IsEnabled="{Binding !MaximumReached}"
 					Margin="2"
-					Background="Transparent"/>
+					Background="Transparent">
+				<Image Source="{Binding IconNew}" Width="18" Height="18"/>
+			</Button>
 			<Button Name="buttonCopy"
-					Content="X"
-					IsEnabled="{Binding !MaximumReached}"					
+					AutomationProperties.Name="Duplicate path format"
+					Command="{Binding CopyFormatCommand}"
+					IsEnabled="{Binding !MaximumReached}"
 					Margin="2"
-					Background="Transparent"/>
-			<Button Name="buttonDelete" 
-					Content="-" 
-					IsEnabled="{Binding !ReadOnly}"			
+					Background="Transparent">
+				<Image Source="{Binding IconCopy}" Width="18" Height="18"/>
+			</Button>
+			<Button Name="buttonDelete"
+					AutomationProperties.Name="Remove path format"
+					Command="{Binding DeleteFormatCommand}"
+					IsEnabled="{Binding !ReadOnly}"
 					Margin="2"
-					Background="Transparent"/>
+					Background="Transparent">
+				<Image Source="{Binding IconDelete}" Width="18" Height="18"/>
+			</Button>
 		</StackPanel>
 
 		<TextBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
@@ -55,8 +64,10 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="5">
-			<Button Name="buttonOk" Content="Ok" Margin="5"/>
-			<Button Name="buttonCancel" Content="Cancel" Margin="5"/>
+			<Button Name="buttonOk" Content="Ok" Margin="5"
+					Command="{Binding ConfirmCommand}"/>
+			<Button Name="buttonCancel" Content="Cancel" Margin="5"
+					Command="{Binding CancelCommand}"/>
 		</StackPanel>
 		
 	</Grid>

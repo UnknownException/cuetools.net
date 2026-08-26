@@ -51,14 +51,19 @@ namespace CUERipper.Avalonia.Services
             => await EncoderOptionsDialog.CreateAsync(Owner, _serviceProvider, encoderSettings);
 
         public async Task ShowPathFormatAsync(AlbumMetadata? meta)
-            => await PathFormatDialog.CreateAsync(Owner, _serviceProvider, meta);
+        {
+            var pathFormatDialog = _serviceProvider.GetRequiredService<PathFormatDialog>();
+
+            // TODO Consider handling the return value
+            _ = await pathFormatDialog.CreateDialogAsync(Owner, meta);
+        }
 
         public async Task ShowUpdateAsync()
             => await UpdateDialog.CreateAsync(Owner, _serviceProvider);
 
         public async Task<bool> ShowMessageAsync(MessageBoxDefinition definition)
         {
-            using var messageBox = _serviceProvider.GetRequiredService<MessageBox>();
+            var messageBox = _serviceProvider.GetRequiredService<MessageBox>();
 
             return await messageBox.CreateDialogAsync(Owner, definition);
         }

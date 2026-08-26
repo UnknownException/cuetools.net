@@ -291,4 +291,7 @@
   <data name="DriveSettings:ToolTipSecureMode" xml:space="preserve">
     <value>Burst is de minst veilige manier van rippen, paranoid de meest veilige. Overweeg paranoid alleen wanneer een eerdere poging niet accuraat was.</value>
   </data>
+  <data name="PathFormat:ParseError" xml:space="preserve">
+    <value>Kan het huidige formaat niet verwerken.</value>
+  </data>
 </root>
