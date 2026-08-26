@@ -122,6 +122,8 @@ namespace CUERipper.Avalonia
             services.AddTransient<TrackGridViewModel>();
             services.AddTransient<CoverViewerViewModel>();
             services.AddTransient<RipSessionViewModel>();
+            services.AddTransient<MessageBox>();
+            services.AddTransient<MessageBoxViewModel>();
 
             services.AddSingleton<IUIDispatcher, UIDispatcher>();
 

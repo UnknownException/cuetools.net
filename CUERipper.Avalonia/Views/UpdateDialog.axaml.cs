@@ -34,7 +34,7 @@ namespace CUERipper.Avalonia;
 
 public partial class UpdateDialog : Window, ICUEDialog
 {
-    public required IServiceProvider ServiceProvider { get; init; }
+    public required ICUEDialogService DialogService { get; init; }
     public required IUpdateService UpdateService { get; init; }
     public required IStringLocalizer Localizer { get; init; }
     public UpdateDialog()
@@ -87,11 +87,7 @@ public partial class UpdateDialog : Window, ICUEDialog
                 , MessageBoxType.OkCancel
             );
 
-            var agreedToUpdate = await MessageBox.CreateAsync(
-                Owner as Window ?? throw new InvalidCastException("Failed to cast property Owner to type Window")
-                , ServiceProvider
-                , messageBox
-            );
+            var agreedToUpdate = await DialogService.ShowMessageAsync(messageBox);
 
             if (agreedToUpdate)
             {
@@ -106,11 +102,7 @@ public partial class UpdateDialog : Window, ICUEDialog
                 , MessageBoxType.Ok
             );
             
-            await MessageBox.CreateAsync(
-                Owner as Window ?? throw new InvalidCastException("Failed to cast property Owner to type Window")
-                , ServiceProvider
-                , messageBox
-            );
+            await DialogService.ShowMessageAsync(messageBox);
         }
 
         Close();
@@ -129,7 +121,7 @@ public partial class UpdateDialog : Window, ICUEDialog
         var updateWindow = new UpdateDialog()
         {
             Owner = owner
-            , ServiceProvider = serviceProvider
+            , DialogService = serviceProvider.GetRequiredService<ICUEDialogService>()
             , UpdateService = updateService
             , Localizer = localizer
         };

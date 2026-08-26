@@ -32,13 +32,13 @@
                     VerticalContentAlignment="Center"
                     Width="75"
                     Margin="5"
-                    Click="OnAffirmClicked"/>
+                    Command="{Binding AffirmedCommand}"/>
 			<Button Content="{Binding Negate}"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     Width="75"
                     Margin="5"
-                    Click="OnNegateClicked"
+                    Command="{Binding NegatedCommand}"
 					IsVisible="{Binding ShowNegate}"/>
 		</StackPanel>
 	</StackPanel>

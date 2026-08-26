@@ -17,6 +17,10 @@
 */
 #endregion
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CUERipper.Avalonia.Models;
+using Microsoft.Extensions.Localization;
+using System;
 
 namespace CUERipper.Avalonia.ViewModels
 {
@@ -33,5 +37,49 @@ namespace CUERipper.Avalonia.ViewModels
 
         [ObservableProperty]
         private bool showNegate;
+
+        [ObservableProperty]
+        // Default is null, triggers on true or false
+        private bool? affirmative;
+
+        private readonly IStringLocalizer _localizer;
+
+        public MessageBoxViewModel(IStringLocalizer<Language> localizer)
+        {
+            _localizer = localizer;
+        }
+
+        public void SetDefinition(MessageBoxDefinition definition)
+        {
+            Message = definition.Message;
+            switch (definition.Type)
+            {
+                case MessageBoxType.Ok:
+                    {
+                        Affirm = _localizer["Generic:Ok"];
+                    }
+                    break;
+                case MessageBoxType.YesNo:
+                    {
+                        Affirm = _localizer["Generic:Yes"];
+                        Negate = _localizer["Generic:No"];
+                        ShowNegate = true;
+                    }
+                    break;
+                case MessageBoxType.OkCancel:
+                    {
+                        Affirm = _localizer["Generic:Ok"];
+                        Negate = _localizer["Generic:Cancel"];
+                        ShowNegate = true;
+                    }
+                    break;
+            }
+        }
+
+        [RelayCommand]
+        private void Affirmed() => Affirmative = true;
+        
+        [RelayCommand]
+        private void Negated() => Affirmative = false;
     }
 }

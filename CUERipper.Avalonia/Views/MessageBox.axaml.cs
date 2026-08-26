@@ -17,14 +17,12 @@
 */
 #endregion
 using Avalonia.Controls;
-using Avalonia.Interactivity;
+using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.ViewModels;
-using CUERipper.Avalonia.Views.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Localization;
 using System;
+using System.ComponentModel;
 using System.Threading.Tasks;
 #if NET47
 using System.Media;
@@ -32,97 +30,32 @@ using System.Media;
 
 namespace CUERipper.Avalonia.Views;
 
-public partial class MessageBox : Window, ICUEDialog<MessageBoxDefinition, bool>
+public partial class MessageBox : Window, IDisposable
 {
-    public bool Affirmative { get; set; }
+    public MessageBoxViewModel ViewModel => DataContext as MessageBoxViewModel
+        ?? throw new ViewModelMismatchException(typeof(MessageBoxViewModel), DataContext?.GetType());
 
     public MessageBox()
     {
         InitializeComponent();
-
-        if (Design.IsDesignMode)
-        {
-            Title = "CUERipper Messagebox";
-            Design.SetDataContext(this, new MessageBoxViewModel() 
-            {
-                Message = @"Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
-Fusce eu magna ut turpis faucibus gravida. Maecenas interdum urna non eros varius, ac rhoncus nibh consectetur. 
-Ut ligula mauris, viverra nec maximus quis, convallis at turpis. Curabitur in dictum magna, ut rhoncus orci. 
-Nulla facilisi. In sit amet metus tellus. Suspendisse ut leo eget tortor auctor rhoncus a in purus. 
-Pellentesque laoreet tempor nisi, nec pharetra odio facilisis vel. Nullam hendrerit nulla sit amet enim volutpat mollis. 
-Sed faucibus sem eu turpis blandit tempor. Vestibulum sagittis vehicula lorem, pretium sagittis nisl consectetur vel. 
-Phasellus placerat pharetra sem, non faucibus neque sagittis at. Mauris luctus varius lectus at viverra. 
-Vestibulum sed odio nibh."
-                , Affirm = "Yes"
-                , Negate = "Not Yes"
-                , ShowNegate = true
-            });
-        }
     }
 
-    public void SetMessage(string message)
+    public MessageBox(MessageBoxViewModel viewModel)
     {
-        if (DataContext is MessageBoxViewModel viewModel)
-        {
-            viewModel.Message = message;
-        }
+        InitializeComponent();
+
+        viewModel.PropertyChanged += OnViewModelPropertyChanged;
+
+        DataContext = viewModel;
     }
 
-    public void SetType(MessageBoxType type, IStringLocalizer localizer)
+    public async Task<bool> CreateDialogAsync(Window owner,
+        MessageBoxDefinition definition)
     {
-        if (DataContext is MessageBoxViewModel viewModel)
-        {
-            switch (type)
-            {
-                case MessageBoxType.Ok:
-                    {
-                        viewModel.Affirm = localizer["Generic:Ok"];
-                    } break;
-                case MessageBoxType.YesNo:
-                    {
-                        viewModel.Affirm = localizer["Generic:Yes"];
-                        viewModel.Negate = localizer["Generic:No"];
-                        viewModel.ShowNegate = true;
-                    } break;
-                case MessageBoxType.OkCancel:
-                    {
-                        viewModel.Affirm = localizer["Generic:Ok"];
-                        viewModel.Negate = localizer["Generic:Cancel"];
-                        viewModel.ShowNegate = true;
-                    } break;
-            }
-        }
-    }
+        Owner = owner;
+        Title = string.IsNullOrWhiteSpace(definition.Title) ? "MessageBox" : definition.Title;
 
-    private void OnAffirmClicked(object? sender, RoutedEventArgs e)
-    {
-        Affirmative = true;
-
-        Close();
-    }
-
-    private void OnNegateClicked(object? sender, RoutedEventArgs e)
-    {
-        Affirmative = false;
-
-        Close();
-    }
-
-    public static async Task<bool> CreateAsync(Window owner
-        , IServiceProvider serviceProvider
-        , MessageBoxDefinition param)
-    {
-        var localizer = serviceProvider.GetRequiredService<IStringLocalizer<Language>>();
-
-        var messageBox = new MessageBox()
-        {
-            Owner = owner
-            , Title = string.IsNullOrWhiteSpace(param.Title) ? "MessageBox" : param.Title
-            , DataContext = new MessageBoxViewModel()
-        };
-
-        messageBox.SetMessage(param.Message);
-        messageBox.SetType(param.Type, localizer);
+        ViewModel.SetDefinition(definition);
 
 #if NET47
         try
@@ -135,8 +68,23 @@ Vestibulum sed odio nibh."
         }
 #endif
 
-        await messageBox.ShowDialog(owner, lockParent: true);
+        await this.ShowDialog(owner, lockParent: true);
 
-        return messageBox.Affirmative;
+        return ViewModel.Affirmative ?? false;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MessageBoxViewModel.Affirmative)) Close();
+    }
+
+    public void Dispose()
+    {
+        if (DataContext is MessageBoxViewModel viewModel)
+        {
+            viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        }
+
+        GC.SuppressFinalize(this);
     }
 }
