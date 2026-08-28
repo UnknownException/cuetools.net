@@ -294,4 +294,34 @@
   <data name="PathFormat:ParseError" xml:space="preserve">
     <value>Kan het huidige formaat niet verwerken.</value>
   </data>
+  <data name="Update:Install" xml:space="preserve">
+    <value>Installeren</value>
+  </data>
+  <data name="Update:Version" xml:space="preserve">
+    <value>Versie</value>
+  </data>
+  <data name="Update:Size" xml:space="preserve">
+    <value>Grootte</value>
+  </data>
+  <data name="Update:Author" xml:space="preserve">
+    <value>Auteur</value>
+  </data>
+  <data name="Update:Date" xml:space="preserve">
+    <value>Datum</value>
+  </data>
+  <data name="Update:Downloaded" xml:space="preserve">
+    <value>Update gedownload</value>
+  </data>
+  <data name="Update:QuestionClose" xml:space="preserve">
+    <value>CUERipper moet worden afgesloten voordat de applicatie kan worden bijgewerkt.</value>
+  </data>
+  <data name="Update:Failed" xml:space="preserve">
+    <value>Updaten mislukt</value>
+  </data>
+  <data name="Update:FailedMessage" xml:space="preserve">
+    <value>Het downloaden van de update is mislukt, zie de log.</value>
+  </data>
+  <data name="Update:ToolTipProgress" xml:space="preserve">
+    <value>Voortgang van het downloaden van de update.</value>
+  </data>
 </root>

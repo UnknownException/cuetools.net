@@ -28,7 +28,7 @@ namespace CUERipper.Avalonia.Services.Abstractions
         Task ShowOptionsAsync();
         Task ShowEncoderOptionsAsync(IAudioEncoderSettings encoderSettings);
         Task ShowPathFormatAsync(AlbumMetadata? meta);
-        Task ShowUpdateAsync();
+        Task<bool> ShowUpdateAsync();
         Task<bool> ShowMessageAsync(MessageBoxDefinition definition);
         Task<int> ShowRepairSelectionAsync(CUEToolsSourceFile[] sourceFiles);
     }

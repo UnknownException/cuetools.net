@@ -18,9 +18,11 @@
 #endregion
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.ViewModels;
 using System;
+using System.ComponentModel;
 
 namespace CUERipper.Avalonia.Views
 {
@@ -39,6 +41,7 @@ namespace CUERipper.Avalonia.Views
             InitializeComponent();
             DataContextChanged += OnDataContextChanged;
             Closing += OnWindowClosing;
+            viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
             DataContext = viewModel;
         }
@@ -48,6 +51,15 @@ namespace CUERipper.Avalonia.Views
             ViewModel.Initialize();
             await ViewModel.RefreshSessionAsync();
             await ViewModel.CheckForUpdateAsync();
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainWindowViewModel.InstallPending)
+                && ViewModel.InstallPending)
+            {
+                Dispatcher.UIThread.Post(Close);
+            }
         }
 
         private void OnSplitViewPaneClosing(object? sender, CancelRoutedEventArgs args)

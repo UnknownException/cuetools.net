@@ -1,6 +1,6 @@
-#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,116 +17,54 @@
 */
 #endregion
 using Avalonia.Controls;
-using System.Threading.Tasks;
-using CUERipper.Avalonia.Extensions;
-using CUERipper.Avalonia.Services.Abstractions;
-using System;
-using Avalonia.Interactivity;
-using CUERipper.Avalonia.Events;
 using Avalonia.Threading;
-using CUERipper.Avalonia.Views;
-using Microsoft.Extensions.Localization;
-using CUERipper.Avalonia.Views.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Exceptions;
+using CUERipper.Avalonia.Extensions;
+using CUERipper.Avalonia.ViewModels;
+using System.ComponentModel;
+using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia;
 
-public partial class UpdateDialog : Window, ICUEDialog
+public partial class UpdateDialog : Window
 {
-    public required ICUEDialogService DialogService { get; init; }
-    public required IUpdateService UpdateService { get; init; }
-    public required IStringLocalizer Localizer { get; init; }
+    public UpdateDialogViewModel ViewModel => DataContext as UpdateDialogViewModel
+        ?? throw new ViewModelMismatchException(typeof(UpdateDialogViewModel), DataContext?.GetType());
+
     public UpdateDialog()
     {
         InitializeComponent();
-
-        buttonInstall.Click += OnInstallClicked;
-        buttonCancel.Click += OnCancelClicked;
     }
 
-    public void Init()
+    public UpdateDialog(UpdateDialogViewModel viewModel)
     {
-        var data = UpdateService.UpdateMetadata
-            ?? throw new ArgumentNullException(nameof(UpdateService.UpdateMetadata));
+        InitializeComponent();
 
-        textVersion.Text = $"Version: {data.CurrentVersion} -> {data.Version}";
-        textSize.Text = $"Size: {(double)data.Size / (1024 * 1024):F2} MiB";
-        textAuthor.Text = $"Author: {data.Author}";
-        textDate.Text = $"Date: {data.Date:yyyy-MM-dd HH:mm}";
+        viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        Closing += OnWindowClosing;
 
-        textDescription.Text = data.Description;
+        DataContext = viewModel;
+    }
 
-#if !NET47
-        if (!OperatingSystem.IsWindows())
+    public async Task<bool> CreateDialogAsync(Window owner)
+    {
+        Owner = owner;
+
+        await this.ShowDialog(owner, lockParent: true);
+
+        return ViewModel.Affirmative ?? false;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(UpdateDialogViewModel.Affirmative))
         {
-            buttonInstall.IsEnabled = false;
+            Dispatcher.UIThread.Post(Close);
         }
-#endif
     }
 
-    private async void OnInstallClicked(object? sender, RoutedEventArgs e)
+    private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
-        buttonInstall.IsEnabled = false;
-        buttonCancel.IsEnabled = false;
-
-        progressBarDownload.IsVisible = true;
-
-        var success = await UpdateService.DownloadAsync((object? sender, GenericProgressEventArgs e) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                progressBarDownload.Value = Math.Min(Math.Ceiling(e.Progress), 100);
-            });
-        });
-
-        if (success)
-        {
-            var messageBox = new MessageBoxDefinition("Update downloaded"
-                , "CUERipper must be closed before applying the update."
-                , MessageBoxType.OkCancel
-            );
-
-            var agreedToUpdate = await DialogService.ShowMessageAsync(messageBox);
-
-            if (agreedToUpdate)
-            {
-                UpdateService.Install();
-                Environment.Exit(0);
-            }
-        }
-        else
-        {
-            var messageBox = new MessageBoxDefinition("Update failed"
-                , "Failed to download update, check the error log."
-                , MessageBoxType.Ok
-            );
-            
-            await DialogService.ShowMessageAsync(messageBox);
-        }
-
-        Close();
-    }
-
-    private void OnCancelClicked(object? sender, RoutedEventArgs e)
-    {
-        Close();
-    }
-
-    public static async Task CreateAsync(Window owner, IServiceProvider serviceProvider)
-    {
-        var updateService = serviceProvider.GetRequiredService<IUpdateService>();
-        var localizer = serviceProvider.GetRequiredService<IStringLocalizer<Language>>();
-
-        var updateWindow = new UpdateDialog()
-        {
-            Owner = owner
-            , DialogService = serviceProvider.GetRequiredService<ICUEDialogService>()
-            , UpdateService = updateService
-            , Localizer = localizer
-        };
-
-        updateWindow.Init();
-        await updateWindow.ShowDialog(owner, lockParent: true);
+        ViewModel.CancelDownload();
     }
 }

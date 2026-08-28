@@ -87,6 +87,9 @@ namespace CUERipper.Avalonia.ViewModels
             _config.DetailPaneOpened = newValue;
         }
 
+        [ObservableProperty]
+        private bool installPending;
+
         public string TogglePaneGlyph { get => SplitPaneOpen ? ">" : "<"; }
 
         public string HeaderTracks { get => _localizer["Main:Tracks"]; }
@@ -219,7 +222,10 @@ namespace CUERipper.Avalonia.ViewModels
         }
 
         [RelayCommand]
-        private async Task ShowUpdateAsync() => await _dialogService.ShowUpdateAsync();
+        private async Task ShowUpdateAsync()
+        {
+            InstallPending = await _dialogService.ShowUpdateAsync();
+        }
 
         private bool RefreshAlbums()
         {
@@ -359,6 +365,7 @@ namespace CUERipper.Avalonia.ViewModels
             }
 
             EncodingTabs.PersistTabs();
+
             return true;
         }
 

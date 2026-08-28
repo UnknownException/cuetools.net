@@ -32,6 +32,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Services
@@ -253,9 +254,10 @@ namespace CUERipper.Avalonia.Services
         private async Task DownloadFile(string uri
             , long contentSize
             , string filePath
-            , EventHandler<GenericProgressEventArgs>? progressEvent)
+            , EventHandler<GenericProgressEventArgs>? progressEvent
+            , CancellationToken ct)
         {
-            using var response = await _httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await _httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
             long totalBytes = response.Content.Headers.ContentLength ?? contentSize;
@@ -266,9 +268,9 @@ namespace CUERipper.Avalonia.Services
             long totalReadBytes = 0;
             int bytesRead;
 
-            while ((bytesRead = await httpStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            while ((bytesRead = await httpStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
             {
-                await fileStream.WriteAsync(buffer, 0, bytesRead);
+                await fileStream.WriteAsync(buffer, 0, bytesRead, ct);
                 totalReadBytes += bytesRead;
 
                 if (totalBytes >= 0)
@@ -279,7 +281,8 @@ namespace CUERipper.Avalonia.Services
             }
         }
 
-        public async Task<bool> DownloadAsync(EventHandler<GenericProgressEventArgs> progressEvent)
+        public async Task<bool> DownloadAsync(EventHandler<GenericProgressEventArgs> progressEvent
+            , CancellationToken ct)
         {
 #if !NET47
             if (!OperatingSystem.IsWindows())
@@ -304,14 +307,21 @@ namespace CUERipper.Avalonia.Services
                 await DownloadFile(UpdateMetadata!.Uri
                     , contentSize: UpdateMetadata.Size
                     , filePath: setupFile
-                    , progressEvent);
+                    , progressEvent
+                    , ct);
 
                 await DownloadFile(UpdateMetadata.HashUri
                     , contentSize: UpdateMetadata.HashSize
                     , filePath: hashFile
-                    , progressEvent: null);
+                    , progressEvent: null
+                    , ct);
 
                 return VerifyFile(setupFile, hashFile);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Download of the update was cancelled.");
+                throw;
             }
             catch(Exception ex)
             {

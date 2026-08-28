@@ -36,8 +36,20 @@ namespace CUERipper.Avalonia.Services
         private readonly IServiceProvider _serviceProvider;
 
         private static Window Owner
-            => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow
+        {
+            get
+            {
+                var app = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime
                     ?? throw new NotInitializedException(nameof(Owner));
+
+                // Naive method to get the latest window
+                // In theory it could be another locked window that can create a new dialog, 
+                // but currently that would be unexpected behavior.
+                return app.Windows.Count > 1
+                    ? app.Windows[app.Windows.Count - 1]
+                    : app.MainWindow ?? throw new NotInitializedException(nameof(Owner));
+            }
+        }
 
         public CUEDialogService(IServiceProvider serviceProvider)
         {
@@ -58,8 +70,13 @@ namespace CUERipper.Avalonia.Services
             _ = await pathFormatDialog.CreateDialogAsync(Owner, meta);
         }
 
-        public async Task ShowUpdateAsync()
-            => await UpdateDialog.CreateAsync(Owner, _serviceProvider);
+        public async Task<bool> ShowUpdateAsync()
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var updateDialog = scope.ServiceProvider.GetRequiredService<UpdateDialog>();
+
+            return await updateDialog.CreateDialogAsync(Owner);
+        }
 
         public async Task<bool> ShowMessageAsync(MessageBoxDefinition definition)
         {

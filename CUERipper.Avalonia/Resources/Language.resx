@@ -294,4 +294,34 @@
   <data name="PathFormat:ParseError" xml:space="preserve">
     <value>Couldn't parse the current format.</value>
   </data>
+  <data name="Update:Install" xml:space="preserve">
+    <value>Install</value>
+  </data>
+  <data name="Update:Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Update:Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Update:Author" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="Update:Date" xml:space="preserve">
+    <value>Date</value>
+  </data>
+  <data name="Update:Downloaded" xml:space="preserve">
+    <value>Update downloaded</value>
+  </data>
+  <data name="Update:QuestionClose" xml:space="preserve">
+    <value>CUERipper must be closed before applying the update.</value>
+  </data>
+  <data name="Update:Failed" xml:space="preserve">
+    <value>Update failed</value>
+  </data>
+  <data name="Update:FailedMessage" xml:space="preserve">
+    <value>Failed to download update, check the error log.</value>
+  </data>
+  <data name="Update:ToolTipProgress" xml:space="preserve">
+    <value>Total progress of the update being downloaded.</value>
+  </data>
 </root>
