@@ -57,7 +57,11 @@ namespace CUERipper.Avalonia.Services
         }
 
         public async Task ShowOptionsAsync()
-            => await OptionsDialog.CreateAsync(Owner, _serviceProvider);
+        {
+            var optionsDialog = _serviceProvider.GetRequiredService<OptionsDialog>();
+
+            await optionsDialog.CreateDialogAsync(Owner);
+        }
 
         public async Task ShowEncoderOptionsAsync(IAudioEncoderSettings encoderSettings)
             => await EncoderOptionsDialog.CreateAsync(Owner, _serviceProvider, encoderSettings);

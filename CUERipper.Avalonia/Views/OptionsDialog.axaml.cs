@@ -1,6 +1,6 @@
-#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,111 +17,34 @@
 */
 #endregion
 using Avalonia.Controls;
-using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.ViewModels;
-using CUERipper.Avalonia.ViewModels.Bindings.OptionProxies;
-using CUERipper.Avalonia.ViewModels.Bindings.OptionProxies.Abstractions;
-using CUERipper.Avalonia.Views.Abstractions;
-using CUETools.CTDB;
-using CUETools.Processor;
-using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia;
 
-public partial class OptionsDialog : Window, ICUEDialog
+public partial class OptionsDialog : Window
 {
     public OptionsDialogViewModel ViewModel => DataContext as OptionsDialogViewModel
         ?? throw new ViewModelMismatchException(typeof(OptionsDialogViewModel), DataContext?.GetType());
 
-    public required ICUEConfigFacade Config { get; init; }
     public OptionsDialog()
     {
         InitializeComponent();
-        DataContextChanged += OnDataContextChanged;
     }
 
-    private void OnDataContextChanged(object? sender, EventArgs e)
+    public OptionsDialog(OptionsDialogViewModel viewModel)
     {
-        new ObservableCollection<IOptionProxy> {
-            new StringOptionProxy("CTDB Server", "db.cuetools.net"
-                , new(() => Config.CTDBServer))
-            , new EnumOptionProxy<CTDBMetadataSearch>("Metadata search", CTDBMetadataSearch.Default
-                , new(() => Config.MetadataSearch))
-            , new EnumOptionProxy<CUEConfigAdvanced.CTDBCoversSize>("Album art size", CUEConfigAdvanced.CTDBCoversSize.Large
-                , new(() => Config.CoversSize))
-            , new EnumOptionProxy<CUEConfigAdvanced.CTDBCoversSearch>("Album art search", CUEConfigAdvanced.CTDBCoversSearch.Primary
-                , new(() => Config.CoversSearch))
-            , new BoolOptionProxy("Detailed log", false
-                , new(() => Config.DetailedCTDBLog))
-        }.MoveAll(ViewModel.CTDBOptions);
+        InitializeComponent();
 
-        new ObservableCollection<IOptionProxy> {
-            new BoolOptionProxy("Preserve HTOA", true
-                , new(() => Config.PreserveHTOA))
-            , new BoolOptionProxy("Detect Indexes", true
-                , new(() => Config.DetectGaps))
-            , new BoolOptionProxy("EAC log style", true
-                , new(() => Config.CreateEACLog))
-            , new BoolOptionProxy("Create M3U playlist", false
-                , new(() => Config.CreateM3U))
-            , new BoolOptionProxy("Embed album art", true
-                , new(() => Config.EmbedAlbumArt))
-            , new IntOptionProxy("Max album art size"
-                , defaultValue: CUEConfig.Constants.MaxAlbumArtSize
-                , minValue: CUEConfig.Constants.MaxAlbumArtSizeLowerBound
-                , maxValue: CUEConfig.Constants.MaxAlbumArtSizeUpperBound
-                , new(() => Config.MaxAlbumArtSize))
-            , new BoolOptionProxy("Eject after rip", false
-                , new(() => Config.EjectAfterRip))
-            , new BoolOptionProxy("Disable eject disc", true
-                , new(() => Config.DisableEjectDisc))
-            , new StringOptionProxy("Track filename", "%tracknumber%. %title%"
-                , new(() => Config.TrackFilenameFormat))
-            , new BoolOptionProxy("Automatic rip", false
-                , new(() => Config.AutomaticRip))
-            , new BoolOptionProxy("Skip repair", false
-                , new(() => Config.SkipRepair))
-        }.MoveAll(ViewModel.ExtractionOptions);
-
-        new ObservableCollection<IOptionProxy> {
-            new EnumOptionProxy<CUEConfigAdvanced.ProxyMode>("Proxy mode", CUEConfigAdvanced.ProxyMode.System
-                , new(() => Config.UseProxyMode))
-            , new StringOptionProxy("Host", "127.0.0.1"
-                , new(() => Config.ProxyServer))
-            , new IntOptionProxy("Port"
-                , defaultValue: 8080
-                , minValue: 0
-                , maxValue: 65535
-                , new(() => Config.ProxyPort))
-            , new StringOptionProxy("Auth user", string.Empty
-                , new(() => Config.ProxyUser))
-            , new StringOptionProxy("Auth password", string.Empty
-                , new(() => Config.ProxyPassword))
-
-        }.MoveAll(ViewModel.ProxyOptions);
-
-        new ObservableCollection<IOptionProxy> {
-            new StringOptionProxy("Freedb site address", "gnudb.gnudb.org"
-                , new(() => Config.FreedbSiteAddress))
-            , new BoolOptionProxy("Check for updates", true
-                , new(() => Config.CheckForUpdates))
-        }.MoveAll(ViewModel.VariousOptions);
+        DataContext = viewModel;
     }
 
-    public static async Task CreateAsync(Window owner, IServiceProvider serviceProvider)
+    public async Task CreateDialogAsync(Window owner)
     {
-        var optionsWindow = new OptionsDialog()
-        {
-            Owner = owner
-            , Config = serviceProvider.GetRequiredService<ICUEConfigFacade>()
-            , DataContext = new OptionsDialogViewModel()
-        };
+        Owner = owner;
 
-        await optionsWindow.ShowDialog(owner, lockParent: true);
+        await this.ShowDialog(owner, lockParent: true);
     }
 }

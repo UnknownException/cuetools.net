@@ -128,6 +128,8 @@ namespace CUERipper.Avalonia
             services.AddTransient<PathFormatDialogViewModel>();
             services.AddTransient<UpdateDialog>();
             services.AddTransient<UpdateDialogViewModel>();
+            services.AddTransient<OptionsDialog>();
+            services.AddTransient<OptionsDialogViewModel>();
 
             services.AddSingleton<IUIDispatcher, UIDispatcher>();
 
