@@ -64,7 +64,11 @@ namespace CUERipper.Avalonia.Services
         }
 
         public async Task ShowEncoderOptionsAsync(IAudioEncoderSettings encoderSettings)
-            => await EncoderOptionsDialog.CreateAsync(Owner, _serviceProvider, encoderSettings);
+        {
+            var encoderOptionsDialog = _serviceProvider.GetRequiredService<EncoderOptionsDialog>();
+
+            await encoderOptionsDialog.CreateDialogAsync(Owner, encoderSettings);
+        }
 
         public async Task ShowPathFormatAsync(AlbumMetadata? meta)
         {
