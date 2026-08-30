@@ -132,6 +132,8 @@ namespace CUERipper.Avalonia
             services.AddTransient<OptionsDialogViewModel>();
             services.AddTransient<EncoderOptionsDialog>();
             services.AddTransient<EncoderOptionsDialogViewModel>();
+            services.AddTransient<RepairSelectionDialog>();
+            services.AddTransient<RepairSelectionDialogViewModel>();
 
             services.AddSingleton<IUIDispatcher, UIDispatcher>();
 

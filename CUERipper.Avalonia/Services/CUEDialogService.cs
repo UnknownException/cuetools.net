@@ -94,6 +94,10 @@ namespace CUERipper.Avalonia.Services
         }
 
         public async Task<int> ShowRepairSelectionAsync(CUEToolsSourceFile[] sourceFiles)
-            => await RepairSelectionDialog.CreateAsync(Owner, _serviceProvider, sourceFiles);
+        {
+            var repairSelectionDialog = _serviceProvider.GetRequiredService<RepairSelectionDialog>();
+
+            return await repairSelectionDialog.CreateDialogAsync(Owner, sourceFiles);
+        }
     }
 }
