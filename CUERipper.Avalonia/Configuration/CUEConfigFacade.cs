@@ -24,9 +24,11 @@ using CUETools.Processor.Settings;
 using System.Xml;
 using System.Xml.Serialization;
 using System.Collections.Generic;
+using System.Linq;
 using CUETools.Codecs;
 using CUETools.CTDB;
 using CUERipper.Avalonia.Configuration.Abstractions;
+using CUERipper.Avalonia.Models;
 
 namespace CUERipper.Avalonia.Configuration
 {
@@ -182,5 +184,41 @@ namespace CUERipper.Avalonia.Configuration
 
             sw.Close();
         }
+
+        public void ApplyEncodingConfiguration(EncodingConfiguration encodingConfig)
+        {
+           var currentEncoding = Formats
+               .Where(f => f.Key == encodingConfig.Encoding)
+               .Select(e => e.Value)
+               .Single();
+
+           var requestedEncoder = Encoders
+               .Where(e => string.Compare(e.Extension, encodingConfig.Encoding, true) == 0)
+               .Where(e => string.Compare(e.Name, encodingConfig.Encoder, true) == 0)
+               .Single();
+
+           requestedEncoder.Settings.EncoderMode = encodingConfig.EncoderMode;
+           CUEStyleIndex = encodingConfig.CUEStyleIndex;
+
+           if (encodingConfig.IsLossless)
+           {
+               currentEncoding.encoderLossless = requestedEncoder;
+               DefaultLosslessFormat = encodingConfig.Encoding;
+               OutputCompression = AudioEncoderType.Lossless;
+           }
+           else
+           {
+               currentEncoding.encoderLossy = requestedEncoder;
+               DefaultLossyFormat = encodingConfig.Encoding;
+               OutputCompression = AudioEncoderType.Lossy;
+           }
+        }
+
+        public bool CanEmbedCUE(EncodingConfiguration encodingConfig)
+            => Formats
+               .Where(f => f.Key == encodingConfig.Encoding)
+               .Select(e => e.Value)
+               .Single()
+               .allowEmbed;
     }
 }

@@ -16,6 +16,7 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
+using CUERipper.Avalonia.Models;
 using CUETools.Codecs;
 using CUETools.CTDB;
 using CUETools.Processor;
@@ -84,5 +85,7 @@ namespace CUERipper.Avalonia.Configuration.Abstractions
         bool DetailPaneOpened { get; set; }
 
         void Save();
+        void ApplyEncodingConfiguration(EncodingConfiguration encodingConfig);
+        bool CanEmbedCUE(EncodingConfiguration encodingConfig);
     }
 }

@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,21 +16,13 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using System;
-
-namespace CUERipper.Avalonia.Events
+namespace CUERipper.Avalonia.Models
 {
-    public class RipperFinishedEventArgs : EventArgs
+    public enum RipStatus
     {
-        public bool IsSuccess { get; }
-        public string Status { get; }
-        public string PopupContent { get; }
-
-        public RipperFinishedEventArgs(bool isSuccess, string status, string popupContent)
-        {
-            IsSuccess = isSuccess;
-            Status = status;
-            PopupContent = popupContent;
-        }
+        Failed,
+        Completed,
+        CompletedWithErrors,
+        Repairable
     }
 }

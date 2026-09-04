@@ -102,6 +102,7 @@ namespace CUERipper.Avalonia
             services.AddSingleton<IRemoteMetadataLookup, RemoteMetadataLookup>();
             
             services.AddSingleton<ICUERipperService, CUERipperService>();
+            services.AddSingleton<ICUEImageService, CUEImageService>();
             services.AddSingleton<ICUEMetaService, CUEMetaService>();
 
             if (OS.IsWindows())

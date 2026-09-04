@@ -379,6 +379,7 @@ namespace CUERipper.Avalonia.ViewModels
                 {
                     var drives = _ripperService.QueryAvailableDriveInformation().Select(d => d.Key);
                     if (drives.Contains(_ripperService.SelectedDrive)) return;
+                    if (!RipSession.IsUsingDrive) return;
 
                     await RipSession.CancelAsync();
                 }
@@ -395,6 +396,8 @@ namespace CUERipper.Avalonia.ViewModels
                 {
                     if (RipSession.HasRunningTask)
                     {
+                        if (!RipSession.IsUsingDrive) return;
+
                         RipSession.Status = _localizer["Status:DiscUnexpectedRemove"];
                         await RipSession.CancelAsync();
                     }
@@ -412,6 +415,7 @@ namespace CUERipper.Avalonia.ViewModels
         {
             _dispatcher.Post(async () =>
             {
+                if (RipSession.HasRunningTask && !RipSession.IsUsingDrive) return;
                 if (driveLetter == _ripperService.SelectedDrive) await RefreshSessionAsync();
             });
         }

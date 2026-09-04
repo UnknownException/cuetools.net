@@ -19,6 +19,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Compatibility;
+using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Models;
@@ -64,39 +65,48 @@ namespace CUERipper.Avalonia.ViewModels
 
         public bool HasRunningTask { get => _rippingTask != null && !_rippingTask.IsCompleted; }
 
+        private volatile bool _isUsingDrive;
+        public bool IsUsingDrive { get => _isUsingDrive; }
+
         [ObservableProperty]
         private bool isStopping;
 
         private RipSettingsFactory? _buildSettings;
-        private Task? _rippingTask;
+        private Task<CUEResult>? _rippingTask;
         private CancellationTokenSource _rippingCts = new();
 
+        private readonly ICUEConfigFacade _config;
         private readonly ICUERipperService _ripperService;
+        private readonly ICUEImageService _imageService;
         private readonly ICUEMetaService _metaService;
         private readonly ICUEDialogService _dialogService;
         private readonly IUIDispatcher _dispatcher;
         private readonly IStringLocalizer _localizer;
         private readonly ILogger _logger;
 
-        public RipSessionViewModel(ICUERipperService ripperService
+        public RipSessionViewModel(ICUEConfigFacade config
+            , ICUERipperService ripperService
+            , ICUEImageService imageService
             , ICUEMetaService metaService
             , ICUEDialogService dialogService
             , IUIDispatcher dispatcher
             , IStringLocalizer<Language> localizer
             , ILogger<RipSessionViewModel> logger)
         {
+            _config = config;
             _ripperService = ripperService;
+            _imageService = imageService;
             _metaService = metaService;
             _dialogService = dialogService;
             _dispatcher = dispatcher;
             _localizer = localizer;
             _logger = logger;
 
-            _ripperService.OnSecondaryProgress += RepairStatusCallback;
-            _ripperService.OnRepairSelection += RepairSelectionCallback;
-            _ripperService.OnFinish += RipperFinishedCallback;
             _ripperService.OnDirectoryConflict += DirectoryConflictCallback;
             _ripperService.OnRippingProgress += RipperStatusCallback;
+
+            _imageService.OnProgress += ImageProgressCallback;
+            _imageService.OnRepairSelection += RepairSelectionCallback;
         }
 
         public void UseSettingsFactory(RipSettingsFactory factory)
@@ -128,25 +138,44 @@ namespace CUERipper.Avalonia.ViewModels
 
             Status = _localizer["Status:DownloadingAlbumCover"];
 
-            RipSettings settings;
             try
             {
-                settings = await _buildSettings(_rippingCts.Token);
+                var settings = await _buildSettings(_rippingCts.Token);
+
+                _rippingTask = RunAsync(settings, _rippingCts.Token);
+
+                ReportFinished(await _rippingTask);
             }
             catch (OperationCanceledException)
             {
                 Mode = SessionState.Done;
                 return;
             }
+        }
 
-            _rippingTask = _ripperService.StartRipProcess(settings, _rippingCts.Token);
+        private async Task<CUEResult> RunAsync(RipSettings settings, CancellationToken ct)
+        {
+            CUEResult result;
 
-            // Don't let the error be swallowed
-            _ = _rippingTask.ContinueWith(task
-                    => _logger.LogError(task.Exception, "Ripping task faulted.")
-                , CancellationToken.None
-                , TaskContinuationOptions.OnlyOnFaulted
-                , TaskScheduler.Default);
+            _isUsingDrive = true;
+            try
+            {
+                result = await _ripperService.RipAsync(settings, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                _isUsingDrive = false;
+            }
+
+            if (!result.IsSuccess) return result;
+
+            var processed = await _imageService.ProcessAsync(result.CUEPath
+                , settings.EncodingConfiguration
+                , repairable: result.Status == RipStatus.Repairable
+                , ct).ConfigureAwait(false);
+
+            return processed ?? result;
         }
 
         [RelayCommand(CanExecute = nameof(CanAbort))]
@@ -203,12 +232,15 @@ namespace CUERipper.Avalonia.ViewModels
 
         #region Ripping Callbacks
 
-        private void RepairStatusCallback(object? sender, CUEToolsProgressEventArgs args)
+        private void ImageProgressCallback(object? sender, CUEToolsProgressEventArgs args)
         {
             string status = args.status;
+            double percent = args.percent;
+
             _dispatcher.Post(() =>
             {
                 Status = status;
+                TotalProgress = MathClamp.Clamp((int)Math.Round(percent * 100), 0, 100);
             });
         }
 
@@ -226,22 +258,26 @@ namespace CUERipper.Avalonia.ViewModels
             }
         }
 
-        private void RipperFinishedCallback(object? sender, RipperFinishedEventArgs e)
+        private void ReportFinished(CUEResult result)
         {
-            var status = e.Status;
-            var content = e.PopupContent;
+            Mode = SessionState.Done;
+            Status = result.StatusText;
 
-            _dispatcher.Post(async () =>
-            {
-                Mode = SessionState.Done;
-                Status = status;
+            if (result.IsSuccess && _config.AutomaticRip) return;
 
-                if (!string.IsNullOrWhiteSpace(content))
-                {
-                    var messageBox = new MessageBoxDefinition(status, content, MessageBoxType.Ok);
-                    await _dialogService.ShowMessageAsync(messageBox);
-                }
-            });
+            if (string.IsNullOrWhiteSpace(result.PopupContent)) return;
+
+            var messageBox = new MessageBoxDefinition(result.StatusText
+                , result.PopupContent
+                , MessageBoxType.Ok);
+
+            // Fire and forget
+            _ = _dialogService.ShowMessageAsync(messageBox)
+                .ContinueWith(task
+                    => _logger.LogError(task.Exception, "Failed to report the rip result.")
+                , CancellationToken.None
+                , TaskContinuationOptions.OnlyOnFaulted
+                , TaskScheduler.Default);
         }
 
         private void DirectoryConflictCallback(object? sender, DirectoryConflictEventArgs e)
@@ -344,11 +380,11 @@ namespace CUERipper.Avalonia.ViewModels
 
             _rippingCts.Dispose();
 
-            _ripperService.OnSecondaryProgress -= RepairStatusCallback;
-            _ripperService.OnRepairSelection -= RepairSelectionCallback;
-            _ripperService.OnFinish -= RipperFinishedCallback;
             _ripperService.OnDirectoryConflict -= DirectoryConflictCallback;
             _ripperService.OnRippingProgress -= RipperStatusCallback;
+
+            _imageService.OnProgress -= ImageProgressCallback;
+            _imageService.OnRepairSelection -= RepairSelectionCallback;
 
             GC.SuppressFinalize(this);
         }

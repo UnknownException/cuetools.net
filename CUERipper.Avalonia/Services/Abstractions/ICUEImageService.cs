@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,44 +16,28 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Models;
-using CUETools.CDImage;
-using CUETools.Ripper;
+using CUETools.Processor;
 using System;
-using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Services.Abstractions
 {
-    public interface ICUERipperService
+    public interface ICUEImageService
     {
-        public char SelectedDrive { get; set; }
-        
-        /// <summary>
-        /// Fired from UI thread
-        /// </summary>
-        public event EventHandler<DriveChangedEventArgs>? OnSelectedDriveChanged;
         /// <summary>
         /// Fired from non UI thread
         /// </summary>
-        public event EventHandler<ReadProgressArgs>? OnRippingProgress;
+        public event EventHandler<CUEToolsProgressEventArgs>? OnProgress;
         /// <summary>
         /// Fired from non UI thread
         /// </summary>
-        public event EventHandler<DirectoryConflictEventArgs>? OnDirectoryConflict;
+        public event EventHandler<CUEToolsSelectionEventArgs>? OnRepairSelection;
 
-        IImmutableDictionary<char, DriveInformation> QueryAvailableDriveInformation();
-        bool IsDriveAccessible();
-        string GetDriveName();
-        string GetDriveARName();
-
-        CDImageLayout? GetDiscTOC(); 
-
-        void EjectTray();
-        int GetDriveOffset();
-
-        Task<CUEResult> RipAsync(RipSettings settings, CancellationToken token);
+        Task<CUEResult?> ProcessAsync(string cuePath
+            , EncodingConfiguration[] encodingConfiguration
+            , bool repairable
+            , CancellationToken token);
     }
 }

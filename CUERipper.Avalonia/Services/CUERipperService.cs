@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,13 +20,11 @@ using Avalonia.Media.Imaging;
 using CUERipper.Avalonia.Compatibility;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Events;
-using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUETools.AccurateRip;
 using CUETools.CDImage;
-using CUETools.CTDB;
 using CUETools.Processor;
 using CUETools.Ripper;
 using CUETools.Ripper.Exceptions;
@@ -61,10 +59,7 @@ namespace CUERipper.Avalonia.Services
         }
 
         public event EventHandler<DriveChangedEventArgs>? OnSelectedDriveChanged;
-        public event EventHandler<CUEToolsProgressEventArgs>? OnSecondaryProgress;
-        public event EventHandler<CUEToolsSelectionEventArgs>? OnRepairSelection;
         public event EventHandler<ReadProgressArgs>? OnRippingProgress;
-        public event EventHandler<RipperFinishedEventArgs>? OnFinish;
         public event EventHandler<DirectoryConflictEventArgs>? OnDirectoryConflict;
 
         private readonly ICUEConfigFacade _config;
@@ -222,7 +217,7 @@ namespace CUERipper.Avalonia.Services
                 ? driveOffset
                 : 0;
 
-        public Task StartRipProcess(RipSettings ripSettings, CancellationToken ct)
+        public Task<CUEResult> RipAsync(RipSettings ripSettings, CancellationToken ct)
         {
             var selectedDrive = SelectedDrive;
 
@@ -230,44 +225,34 @@ namespace CUERipper.Avalonia.Services
             {
                 _logger.LogInformation("Rip task has been started.");
 
-                var finishReported = false;
-                void Finish(bool success, string status, string popupContent)
-                {
-                    if (finishReported) return;
-                    finishReported = true;
-
-                    OnFinish?.Invoke(this, new(success, status, popupContent));
-                }
-
                 try
                 {
-                    Rip(selectedDrive, ripSettings, Finish, ct);
+                    return Rip(selectedDrive, ripSettings, ct);
                 }
                 catch (StopException)
                 {
                     _logger.LogInformation("Ripping has been stopped by user.");
-                    Finish(false, _localizer["Status:RipFailUser"], string.Empty);
+                    return CUEResult.Failure(_localizer["Status:RipFailUser"], string.Empty);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Ripping has failed! Unexpected error occurred.");
-                    Finish(false, _localizer["Status:RipFail"], $"{_localizer["Error:Unexpected"]} {ex.Message}");
-                }                
+                    return CUEResult.Failure(_localizer["Status:RipFail"]
+                        , $"{_localizer["Error:Unexpected"]} {ex.Message}");
+                }
             }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             // Do not let this task be cancelled by the cancellation token, let it exit cleanly.
         }
 
-        private void Rip(char selectedDrive
+        private CUEResult Rip(char selectedDrive
             , RipSettings settings
-            , Action<bool, string, string> finish
             , CancellationToken ct)
         {
             if (settings.EncodingConfiguration.None())
             {
                 _logger.LogError("Ripping has failed! No encoding configuration found");
 
-                finish(false, _localizer["Status:RipFail"], _localizer["Error:NoEncodingFound"]);
-                return;
+                return CUEResult.Failure(_localizer["Status:RipFail"], _localizer["Error:NoEncodingFound"]);
             }
 
             var initialEncoding = settings.EncodingConfiguration[0];
@@ -277,19 +262,17 @@ namespace CUERipper.Avalonia.Services
             {
                 _logger.LogError("Ripping has failed! First encoding must be lossless");
 
-                finish(false, _localizer["Status:RipFail"], _localizer["Error:MultiEncodingNotLossless"]);
-                return;
+                return CUEResult.Failure(_localizer["Status:RipFail"], _localizer["Error:MultiEncodingNotLossless"]);
             }
 
-            SetEncodingVariables(initialEncoding);
+            _config.ApplyEncodingConfiguration(initialEncoding);
 
             using var audioSource = CreateCDRipper(selectedDrive, settings, ct);
             if (audioSource == null)
             {
                 _logger.LogError("Ripping has failed! Couldn't open audio source on selected drive {selectedDrive}:\\.", selectedDrive);
 
-                finish(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedNoAccessDrive"]);
-                return;
+                return CUEResult.Failure(_localizer["Status:RipFail"], _localizer["Error:RipFailedNoAccessDrive"]);
             }
 
             var cueSheet = new CUESheet(_config.ToCUEConfig());
@@ -308,8 +291,7 @@ namespace CUERipper.Avalonia.Services
                 CUEMetadataEntry? metadataEntry = GetMetadataEntry(cueSheet, audioSource.TOC, settings.AlbumCoverUri);
                 if (metadataEntry == null)
                 {
-                    finish(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedMetadata"]);
-                    return;
+                    return CUEResult.Failure(_localizer["Status:RipFail"], _localizer["Error:RipFailedMetadata"]);
                 }
 
                 cueSheet.CopyMetadata(metadataEntry.metadata);
@@ -320,7 +302,7 @@ namespace CUERipper.Avalonia.Services
                     : AudioEncoderType.Lossy;
 
                 cueSheet.OutputStyle = initialEncoding.CUEStyleIndex == 0
-                        ? CanEmbedCUE(initialEncoding) ? CUEStyle.SingleFileWithCUE : CUEStyle.SingleFile
+                        ? _config.CanEmbedCUE(initialEncoding) ? CUEStyle.SingleFileWithCUE : CUEStyle.SingleFile
                         : CUEStyle.GapsAppended;
 
                 string pathOut = cueSheet.GenerateUniqueOutputPath(_config.PathFormat,
@@ -331,8 +313,7 @@ namespace CUERipper.Avalonia.Services
                 {
                     _logger.LogError("Ripping has failed! Couldn't generate the output path.");
 
-                    finish(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedOutputPath"]);
-                    return;
+                    return CUEResult.Failure(_localizer["Status:RipFail"], _localizer["Error:RipFailedOutputPath"]);
                 }
 
                 if (Directory.Exists(Path.GetDirectoryName(pathOut)
@@ -345,8 +326,7 @@ namespace CUERipper.Avalonia.Services
                     {
                         _logger.LogError("Ripping has failed! Couldn't generate the output path. Directory already exists.");
 
-                        finish(false, _localizer["Status:RipFail"], _localizer["Error:RipFailedOutputPath"]);
-                        return;
+                        return CUEResult.Failure(_localizer["Status:RipFail"], _localizer["Error:RipFailedOutputPath"]);
                     }
                 }
 
@@ -395,51 +375,35 @@ namespace CUERipper.Avalonia.Services
                     cueSheet.TOC.Barcode);
 #endif
 
-                bool recoveryPossible = false;
-                if (settings.EncodingConfiguration[0].IsLossless
-                    && cueSheet.CTDB.QueryExceptionStatus == WebExceptionStatus.Success
-                    && audioSource.FailedSectors.PopulationCount() != 0)
-                {
-                    foreach (DBEntry entry in cueSheet.CTDB.Entries)
-                    {
-                        if (!entry.hasErrors || !entry.canRecover) continue;
-
-                        _logger.LogInformation("Found recovery record.");
-                        recoveryPossible = true;
-                        break;
-                    }
-                }
+                RipStatus status;
+                string statusText = string.Empty;
+                string popupContent = cueSheet.GenerateVerifyStatus() + ".";
 
                 if (audioSource.FailedSectors.PopulationCount() != 0)
                 {
-                    if (recoveryPossible && !_config.SkipRepair)
+                    if (settings.EncodingConfiguration[0].IsLossless
+                            && cueSheet.CTDB.QueryExceptionStatus == WebExceptionStatus.Success)
                     {
-                        _logger.LogInformation("Start repairing tracks.");
-                        var repairCue = RepairTracks(encoderType, encodingFormat, cueSheet.OutputStyle, metadataEntry, pathOut, ct);
-                        if (repairCue != null)
-                        {
-                            cueSheet.Close();
-                            cueSheet = repairCue;
-                        }
+                        status = cueSheet.CTDB.Entries.Any(x => x.canRecover && x.hasErrors)
+                            ? RipStatus.Repairable : RipStatus.CompletedWithErrors;
                     }
-                    else if (!_config.SkipRepair)
+                    else
                     {
-                        _logger.LogWarning("Recovery is currently not possible for this disc.");
+                        status = RipStatus.CompletedWithErrors;
                     }
 
-                    EncodeTracksPerConfig(pathOut, settings.EncodingConfiguration, metadataEntry, ct);
-
-                    finish(true, _localizer["Warning:RipTroubledDisc"], cueSheet.GenerateVerifyStatus() + ".");
+                    statusText = _localizer["Warning:RipTroubledDisc"];
                 }
                 else
                 {
-                    EncodeTracksPerConfig(pathOut, settings.EncodingConfiguration, metadataEntry, ct);
-
-                    if (_config.AutomaticRip)
-                        finish(true, _localizer["Status:RipFinished"], string.Empty);
-                    else
-                        finish(true, _localizer["Status:RipFinished"], cueSheet.GenerateVerifyStatus() + ".");
+                    status = RipStatus.Completed;
+                    statusText = _localizer["Status:RipFinished"];
                 }
+
+                return new CUEResult(status
+                    , statusText
+                    , popupContent
+                    , pathOut);
             }
             finally
             {
@@ -481,8 +445,18 @@ namespace CUERipper.Avalonia.Services
             var audioSource = CreateCDRipperInstance();
             if (audioSource == null) return null;
 
-            if (!audioSource.Open(selectedDrive))
+            try
             {
+                if (!audioSource.Open(selectedDrive))
+                {
+                    audioSource.Dispose();
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to open audio source for drive {Drive}.", selectedDrive);
+
                 audioSource.Dispose();
                 return null;
             }
@@ -577,208 +551,5 @@ namespace CUERipper.Avalonia.Services
                 File.Copy(filePath, Path.Combine(outputFolder, $"{Constants.HiResCoverName}{Constants.JpgExtension}"), true);
             }
         }
-
-        private CUESheet? RepairTracks(AudioEncoderType encoderType, string encodingFormat, CUEStyle cueStyle, CUEMetadataEntry metaEntry, string cuePath, CancellationToken ctx)
-        {
-            var cueSheet = new CUESheet(_config.ToCUEConfig())
-            {
-                Action = CUEAction.Encode,
-                OutputStyle = cueStyle,
-            };
-
-            cueSheet.CUEToolsProgress += (object? sender, CUEToolsProgressEventArgs args) =>
-            {
-                if (ctx.IsCancellationRequested) throw new StopException();
-                OnSecondaryProgress?.Invoke(sender, args);
-            };
-
-            cueSheet.CUEToolsSelection += (object? sender, CUEToolsSelectionEventArgs args) =>
-            {
-                OnRepairSelection?.Invoke(sender, args);
-            };
-
-            cueSheet.Open(cuePath);
-            cueSheet.CopyMetadata(metaEntry.metadata);
-
-            cueSheet.UseAccurateRip();
-
-            string cueDirectory = Path.GetDirectoryName(cuePath) ?? throw new DirectoryNotFoundException(cuePath);
-            string cueFileName = Path.GetFileName(cuePath);
-            string repairPath = $"{cueDirectory}/{Constants.TempFolderCUERipper}";
-            string repairCuePath = $"{repairPath}/{cueFileName}";
-
-            if (Directory.Exists(repairPath))
-            {
-                Directory.Delete(repairPath, true);
-            }
-
-            cueSheet.GenerateFilenames(encoderType, encodingFormat, repairCuePath);
-
-            const string REPAIR_SCRIPT = "repair";
-            if (!_config.Scripts.TryGetValue(REPAIR_SCRIPT, out CUEToolsScript? value))
-            {
-                _logger.LogError("Where did the repair script go?");
-                throw new CUEToolsCoreException("For some reason the repair script seems to be missing?");
-            }
-
-            try
-            {
-                cueSheet.ExecuteScript(value);
-
-                if (!Directory.Exists(repairPath))
-                {
-                    // Repair cancelled
-                    return null;
-                }
-
-                foreach (string source in Directory.GetFiles(repairPath))
-                {
-                    string fileName = Path.GetFileName(source);
-                    string destination = Path.Combine(cueDirectory, fileName);
-
-                    if (File.Exists(destination))
-                    {
-                        File.Delete(destination);
-                    }
-
-                    File.Move(source, destination);
-                }
-            }
-            finally
-            {
-                if (Directory.Exists(repairPath))
-                {
-                    Directory.Delete(repairPath, true);
-                }
-            }
-
-            return cueSheet;
-        }
-
-        private void EncodeTracksPerConfig(string cuePath
-            , EncodingConfiguration[] encodingConfiguration
-            , CUEMetadataEntry metadataEntry
-            , CancellationToken ct)
-        {
-            string cueDirectory = Path.GetDirectoryName(cuePath) ?? throw new DirectoryNotFoundException(cuePath);
-            string cueFileName = Path.GetFileName(cuePath);
-
-            // Skip the first, because it's already encoded :)
-            for (int i = 1; i < encodingConfiguration.Length; ++i)
-            {
-                if (ct.IsCancellationRequested) break;
-
-                var encodingConfig = encodingConfiguration[i];
-                SetEncodingVariables(encodingConfig);
-
-                string destination = $"{cueDirectory}/{i}-{encodingConfig.Encoding}";
-                string destinationCuePath = $"{destination}/{cueFileName}";
-
-                _logger.LogInformation("Start {Encoding} encoding, preset #{Number}.", encodingConfig.Encoding, i);
-
-                EncodeTracks(cuePath, destination, destinationCuePath, encodingConfig, metadataEntry, i, encodingConfiguration.Length - 1, ct);
-
-                _logger.LogInformation("Finished {Encoding} encoding, preset #{Number}.", encodingConfig.Encoding, i);
-            }
-
-            SetEncodingVariables(encodingConfiguration[0]);
-        }
-
-        private void EncodeTracks(string source
-            , string destination
-            , string destinationCue
-            , EncodingConfiguration encodingConfig
-            , CUEMetadataEntry metadataEntry
-            , int current
-            , int total
-            , CancellationToken ct)
-        {
-            var cueSheet = new CUESheet(_config.ToCUEConfig())
-            {
-                Action = CUEAction.Encode,
-                OutputStyle = encodingConfig.CUEStyleIndex == 0
-                        ? CanEmbedCUE(encodingConfig) ? CUEStyle.SingleFileWithCUE : CUEStyle.SingleFile
-                        : CUEStyle.GapsAppended
-            };
-
-            cueSheet.CUEToolsProgress += (object? sender, CUEToolsProgressEventArgs args) =>
-            {
-                if (ct.IsCancellationRequested) throw new StopException();
-
-                args.status = $"({current}/{total}) {args.status}";
-
-                OnSecondaryProgress?.Invoke(sender, args);
-            };
-
-            cueSheet.Open(source);
-            cueSheet.CopyMetadata(metadataEntry.metadata);
-
-            var encoderType = encodingConfig.IsLossless
-                ? AudioEncoderType.Lossless
-                : AudioEncoderType.Lossy;
-
-            if (encoderType == AudioEncoderType.Lossless) cueSheet.UseAccurateRip();
-
-            if (Directory.Exists(destination))
-            {
-                Directory.Delete(destination, true);
-            }
-
-            cueSheet.GenerateFilenames(encoderType, encodingConfig.Encoding, destinationCue);
-
-            bool isSuccess = false;
-
-            try
-            {
-                cueSheet.Go();
-
-                isSuccess = true;
-            }
-            finally
-            {
-                if (!isSuccess && Directory.Exists(destination))
-                {
-                    Directory.Delete(destination, true);
-                }
-
-                cueSheet.Close();
-            }
-        }
-
-        private void SetEncodingVariables(EncodingConfiguration encodingConfig)
-        {
-            var currentEncoding = _config.Formats
-                .Where(f => f.Key == encodingConfig.Encoding)
-                .Select(e => e.Value)
-                .Single();
-
-            var requestedEncoder = _config.Encoders
-                .Where(e => string.Compare(e.Extension, encodingConfig.Encoding, true) == 0)
-                .Where(e => string.Compare(e.Name, encodingConfig.Encoder, true) == 0)
-                .Single();
-
-            requestedEncoder.Settings.EncoderMode = encodingConfig.EncoderMode;
-            _config.CUEStyleIndex = encodingConfig.CUEStyleIndex;
-
-            if (encodingConfig.IsLossless)
-            {
-                currentEncoding.encoderLossless = requestedEncoder;
-                _config.DefaultLosslessFormat = encodingConfig.Encoding;
-                _config.OutputCompression = AudioEncoderType.Lossless;
-            }
-            else
-            {
-                currentEncoding.encoderLossy = requestedEncoder;
-                _config.DefaultLossyFormat = encodingConfig.Encoding;
-                _config.OutputCompression = AudioEncoderType.Lossy;
-            }
-        }
-
-        private bool CanEmbedCUE(EncodingConfiguration encodingConfig)
-            => _config.Formats
-                .Where(f => f.Key == encodingConfig.Encoding)
-                .Select(e => e.Value)
-                .Single()
-                .allowEmbed;
     }
 }
