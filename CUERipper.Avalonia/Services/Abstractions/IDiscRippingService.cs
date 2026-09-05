@@ -16,32 +16,44 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Models;
+using CUETools.CDImage;
+using CUETools.Ripper;
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Services.Abstractions
 {
-    public interface ICUEMetaService
+    public interface IDiscRippingService
     {
-        AlbumMetadata? SelectedMetadata { get; set; }
-
+        public char SelectedDrive { get; set; }
+        
         /// <summary>
         /// Fired from UI thread
         /// </summary>
-        public event EventHandler<SelectedMetadataChangedEventArgs>? OnSelectedMetadataChanged;
-        
-        IImmutableList<AlbumMetadata> GetAlbumMetaInformation(bool advancedSearch);
-        void ResetAlbumMetaInformation();
+        public event EventHandler<DriveChangedEventArgs>? OnSelectedDriveChanged;
+        /// <summary>
+        /// Fired from non UI thread
+        /// </summary>
+        public event EventHandler<ReadProgressArgs>? OnRippingProgress;
+        /// <summary>
+        /// Fired from non UI thread
+        /// </summary>
+        public event EventHandler<DirectoryConflictEventArgs>? OnDirectoryConflict;
 
-        IEnumerable<string> GetTracksLength();
+        IImmutableDictionary<char, DriveInformation> QueryAvailableDriveInformation();
+        bool IsDriveAccessible();
+        string GetDriveName();
+        string GetDriveARName();
 
-        Task<Bitmap?> FetchImageAsync(string uri, CancellationToken ct);
-        void FinalizeMetadata();
+        CDImageLayout? GetDiscTOC(); 
+
+        void EjectTray();
+        int GetDriveOffset();
+
+        Task<CUEResult> RipAsync(RipSettings settings, CancellationToken token);
     }
 }

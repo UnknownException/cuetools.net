@@ -38,9 +38,9 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         public string HeaderProgress { get => _localizer["TrackList:Progress"]; }
         public string HeaderArtist { get => _localizer["TrackList:Artist"]; }
 
-        private readonly ICUEMetaService _metaService;
+        private readonly IAlbumMetadataService _metaService;
         private readonly IStringLocalizer _localizer;
-        public TrackGridViewModel(ICUEMetaService metaService
+        public TrackGridViewModel(IAlbumMetadataService metaService
             , IStringLocalizer<Language> stringLocalizer)
         {
             _metaService = metaService;
@@ -61,7 +61,7 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             var meta = e.AlbumMetadata;
             if (meta == null) return;
 
-            var tracksLength = _metaService.GetTracksLength();
+            var tracksLength = _metaService.GetTrackLengths();
             for (int i = 0; i < meta.Data.Tracks.Count; ++i)
             {
                 var trackInfo = meta.Data.Tracks[i];

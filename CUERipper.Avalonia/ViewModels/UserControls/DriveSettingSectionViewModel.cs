@@ -56,17 +56,17 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         partial void OnSelectedC2ErrorModeChanged(string? oldValue, string newValue)
         {
             if (string.Compare(oldValue, newValue) == 0) return;
-            if (!_ripperService.IsDriveAccessible()) return; 
+            if (!_rippingService.IsDriveAccessible()) return; 
 
             int index = C2ErrorMode.IndexOf(newValue);
 
-            if (_config.DriveC2ErrorModes.ContainsKey(_ripperService.GetDriveARName()))
+            if (_config.DriveC2ErrorModes.ContainsKey(_rippingService.GetDriveARName()))
             {
-                _config.DriveC2ErrorModes[_ripperService.GetDriveARName()] = index;
+                _config.DriveC2ErrorModes[_rippingService.GetDriveARName()] = index;
             }
             else
             {
-                _config.DriveC2ErrorModes.Add(_ripperService.GetDriveARName(), index);
+                _config.DriveC2ErrorModes.Add(_rippingService.GetDriveARName(), index);
             }
         }
 
@@ -86,15 +86,15 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         partial void OnDriveOffsetChanged(int oldValue, int newValue)
         {
             if (oldValue == newValue) return;
-            if (!_ripperService.IsDriveAccessible()) return;
+            if (!_rippingService.IsDriveAccessible()) return;
 
-            if (_config.DriveOffsets.ContainsKey(_ripperService.GetDriveARName()))
+            if (_config.DriveOffsets.ContainsKey(_rippingService.GetDriveARName()))
             {
-                _config.DriveOffsets[_ripperService.GetDriveARName()] = newValue;
+                _config.DriveOffsets[_rippingService.GetDriveARName()] = newValue;
             }
             else
             {
-                _config.DriveOffsets.Add(_ripperService.GetDriveARName(), newValue);
+                _config.DriveOffsets.Add(_rippingService.GetDriveARName(), newValue);
             }
         }
 
@@ -105,21 +105,21 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         public string ToolTipSecureMode { get => _localizer["DriveSettings:ToolTipSecureMode"]; }
 
         private readonly ICUEConfigFacade _config;
-        private readonly ICUERipperService _ripperService;
+        private readonly IDiscRippingService _rippingService;
         private readonly IStringLocalizer _localizer;
 
         public DriveSettingSectionViewModel(ICUEConfigFacade config
-            , ICUERipperService ripperService
+            , IDiscRippingService rippingService
             , IIconService iconService
             , IStringLocalizer<Language> localizer)
         {
             _config = config;
-            _ripperService = ripperService;
+            _rippingService = rippingService;
             _localizer = localizer;
 
             IconResetDriveSettings = iconService.GetIcon(AppIcon.Cross);
 
-            _ripperService.OnSelectedDriveChanged += OnSelectedDriveChanged;
+            _rippingService.OnSelectedDriveChanged += OnSelectedDriveChanged;
 
             SelectedSecureMode = _config.SecureModeIndex >= 0 && _config.SecureModeIndex < Constants.SecureModeValues.Length
                 ? _config.SecureModeIndex
@@ -130,15 +130,15 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
 
         private void OnSelectedDriveChanged(object? sender, DriveChangedEventArgs e)
         {
-            if (_ripperService.IsDriveAccessible())
+            if (_rippingService.IsDriveAccessible())
             {
-                SelectedC2ErrorMode = _config.DriveC2ErrorModes.TryGetValue(_ripperService.GetDriveARName(), out int c2Value)
+                SelectedC2ErrorMode = _config.DriveC2ErrorModes.TryGetValue(_rippingService.GetDriveARName(), out int c2Value)
                     ? C2ErrorMode[(c2Value >= 0 && c2Value <= 3 ? c2Value : C2ErrorMode.Count - 1)]
                     : C2ErrorMode[C2ErrorMode.Count - 1];
 
-                DriveOffset = _config.DriveOffsets.TryGetValue(_ripperService.GetDriveARName(), out int offsetValue)
+                DriveOffset = _config.DriveOffsets.TryGetValue(_rippingService.GetDriveARName(), out int offsetValue)
                     ? offsetValue
-                    : _ripperService.GetDriveOffset();
+                    : _rippingService.GetDriveOffset();
             }
             else
             {
@@ -150,8 +150,8 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         [RelayCommand]
         private void ResetDriveSettings()
         {
-            DriveOffset = _ripperService.IsDriveAccessible()
-                ? _ripperService.GetDriveOffset()
+            DriveOffset = _rippingService.IsDriveAccessible()
+                ? _rippingService.GetDriveOffset()
                 : 0;
 
             SelectedSecureMode = Constants.SecureModeDefault;
@@ -165,7 +165,7 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             if (_disposed) return;
             _disposed = true;
 
-            _ripperService.OnSelectedDriveChanged -= OnSelectedDriveChanged;
+            _rippingService.OnSelectedDriveChanged -= OnSelectedDriveChanged;
         }
     }
 }

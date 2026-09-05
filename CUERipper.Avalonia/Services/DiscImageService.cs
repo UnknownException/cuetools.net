@@ -31,7 +31,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Services
 {
-    public class CUEImageService : ICUEImageService
+    public class DiscImageService : IDiscImageService
     {
         public event EventHandler<CUEToolsProgressEventArgs>? OnProgress;
         public event EventHandler<CUEToolsSelectionEventArgs>? OnRepairSelection;
@@ -41,10 +41,10 @@ namespace CUERipper.Avalonia.Services
         private readonly IStringLocalizer _localizer;
         private readonly ILogger _logger;
 
-        public CUEImageService(ICUEConfigFacade config
+        public DiscImageService(ICUEConfigFacade config
             , ICUEMetadataStore metadataStore
             , IStringLocalizer<Language> stringLocalizer
-            , ILogger<CUEImageService> logger)
+            , ILogger<DiscImageService> logger)
         {
             _config = config;
             _metadataStore = metadataStore;

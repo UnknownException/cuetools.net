@@ -48,9 +48,9 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         private string albumDisc = string.Empty;
 
 
-        private readonly ICUEMetaService _metaService;
+        private readonly IAlbumMetadataService _metaService;
         private readonly IStringLocalizer _localizer;
-        public MetaGridViewModel(ICUEMetaService metaService
+        public MetaGridViewModel(IAlbumMetadataService metaService
             , IStringLocalizer<Language> stringLocalizer)
         {
             _metaService = metaService;

@@ -31,7 +31,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Services
 {
-    public sealed class CUEDialogService : ICUEDialogService
+    public sealed class DialogService : IDialogService
     {
         private readonly IServiceProvider _serviceProvider;
 
@@ -51,7 +51,7 @@ namespace CUERipper.Avalonia.Services
             }
         }
 
-        public CUEDialogService(IServiceProvider serviceProvider)
+        public DialogService(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
         }

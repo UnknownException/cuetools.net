@@ -1,4 +1,4 @@
-#region Copyright (C) 2026 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
     Copyright (C) 2026 Max Visser
 
@@ -16,28 +16,32 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
+using Avalonia.Media.Imaging;
+using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Models;
-using CUETools.Processor;
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Services.Abstractions
 {
-    public interface ICUEImageService
+    public interface IAlbumMetadataService
     {
-        /// <summary>
-        /// Fired from non UI thread
-        /// </summary>
-        public event EventHandler<CUEToolsProgressEventArgs>? OnProgress;
-        /// <summary>
-        /// Fired from non UI thread
-        /// </summary>
-        public event EventHandler<CUEToolsSelectionEventArgs>? OnRepairSelection;
+        AlbumMetadata? SelectedMetadata { get; set; }
 
-        Task<CUEResult?> ProcessAsync(string cuePath
-            , EncodingConfiguration[] encodingConfiguration
-            , bool repairable
-            , CancellationToken token);
+        /// <summary>
+        /// Fired from UI thread
+        /// </summary>
+        public event EventHandler<SelectedMetadataChangedEventArgs>? OnSelectedMetadataChanged;
+        
+        IImmutableList<AlbumMetadata> Search(bool advancedSearch);
+        void Reset();
+
+        IEnumerable<string> GetTrackLengths();
+
+        Task<Bitmap?> FetchImageAsync(string uri, CancellationToken ct);
+        void Save();
     }
 }

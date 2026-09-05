@@ -49,9 +49,9 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
 
         private readonly InterruptibleJob _thumbnailJob = new();
 
-        private readonly ICUEMetaService _metaService;
+        private readonly IAlbumMetadataService _metaService;
         private readonly IUIDispatcher _dispatcher;
-        public CoverViewerViewModel(ICUEMetaService metaService
+        public CoverViewerViewModel(IAlbumMetadataService metaService
             , IUIDispatcher dispatcher)
         {
             _metaService = metaService;
@@ -80,7 +80,7 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
 
         public void Feed()
         {
-            var unorderedCovers = _metaService.GetAlbumMetaInformation(false)
+            var unorderedCovers = _metaService.Search(advancedSearch: false)
                 .SelectMany(x => x.Data.AlbumArt)
                 .Where(HasAnyUri)
                 .Select(ToCoverViewModel)

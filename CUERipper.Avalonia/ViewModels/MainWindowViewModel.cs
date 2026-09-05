@@ -53,7 +53,7 @@ namespace CUERipper.Avalonia.ViewModels
             if (string.Compare(oldValue, newValue) == 0) return;
             if (string.Compare(newValue, Constants.NoCDDriveFound) == 0) return;
 
-            _ripperService.SelectedDrive = newValue[0];
+            _rippingService.SelectedDrive = newValue[0];
             _config.DefaultDrive = newValue;
         }
 
@@ -109,20 +109,20 @@ namespace CUERipper.Avalonia.ViewModels
         public RipSessionViewModel RipSession { get; }
 
         private readonly ICUEConfigFacade _config;
-        private readonly ICUERipperService _ripperService;
-        private readonly ICUEMetaService _metaService;
+        private readonly IDiscRippingService _rippingService;
+        private readonly IAlbumMetadataService _metaService;
         private readonly IStringLocalizer _localizer;
         private readonly IIconService _iconService;
-        private readonly ICUEDialogService _dialogService;
+        private readonly IDialogService _dialogService;
         private readonly IUpdateService _updateService;
         private readonly IUIDispatcher _dispatcher;
         private readonly ILogger _logger;
         public MainWindowViewModel(ICUEConfigFacade config
-            , ICUERipperService ripperService
-            , ICUEMetaService metaService
+            , IDiscRippingService rippingService
+            , IAlbumMetadataService metaService
             , IStringLocalizer<Language> stringLocalizer
             , IIconService iconService
-            , ICUEDialogService dialogService
+            , IDialogService dialogService
             , IUpdateService updateService
             , IUIDispatcher dispatcher
             , IDriveNotificationService driveNotificationService
@@ -135,7 +135,7 @@ namespace CUERipper.Avalonia.ViewModels
             , RipSessionViewModel ripSession)
         {
             _config = config;
-            _ripperService = ripperService;
+            _rippingService = rippingService;
             _metaService = metaService;
             _localizer = stringLocalizer;
             _iconService = iconService;
@@ -155,7 +155,7 @@ namespace CUERipper.Avalonia.ViewModels
                 , OnDriveUnmountedCallback
                 , OnDriveMountedCallback);
 
-            _ripperService.OnSelectedDriveChanged += (object? _, DriveChangedEventArgs e)
+            _rippingService.OnSelectedDriveChanged += (object? _, DriveChangedEventArgs e)
                 => _dispatcher.Post(async () => {
                     // Prevent double initializing and only re-initialize when a new drive has been selected
                     if (e.PreviousDrive != Constants.NullDrive && e.PreviousDrive != e.NextDrive)
@@ -179,20 +179,20 @@ namespace CUERipper.Avalonia.ViewModels
         private void AdvancedSearch()
         {
             // Advanced search ignores the cache
-            _metaService.GetAlbumMetaInformation(true);
+            _metaService.Search(advancedSearch: true);
             RefreshAlbums();
         }
 
         [RelayCommand]
         private void ResetSearch()
         {
-            _metaService.ResetAlbumMetaInformation();
-            _metaService.GetAlbumMetaInformation(false);
+            _metaService.Reset();
+            _metaService.Search(advancedSearch: false);
             RefreshAlbums();
         }
 
         [RelayCommand]
-        private void EjectTray() => _ripperService.EjectTray();
+        private void EjectTray() => _rippingService.EjectTray();
 
         [RelayCommand]
         private void TogglePane() => SplitPaneOpen = !SplitPaneOpen;
@@ -231,7 +231,7 @@ namespace CUERipper.Avalonia.ViewModels
         {
             AlbumReleases.Clear();
 
-            var metaInfo = _metaService.GetAlbumMetaInformation(false);
+            var metaInfo = _metaService.Search(advancedSearch: false);
             new ObservableCollection<AlbumRelease>(
                 metaInfo.Select((meta, index) =>
                 {
@@ -270,7 +270,7 @@ namespace CUERipper.Avalonia.ViewModels
             if (!CDDriveAvailable || SelectedAlbum == null) return null;
 
             var index = Math.Min(Math.Max(0, SelectedAlbum.Index), AlbumReleases.Count - 1);
-            var albumMetaInformation = _metaService.GetAlbumMetaInformation(false);
+            var albumMetaInformation = _metaService.Search(advancedSearch: false);
             return index < albumMetaInformation.Count ? albumMetaInformation.ElementAt(index) : null;
         }
 
@@ -293,7 +293,7 @@ namespace CUERipper.Avalonia.ViewModels
                 throw new InvalidOperationException($"{nameof(InitializeSession)} requires a cleared state, call {nameof(ClearSession)} first.");
             }
 
-            foreach (var driveName in _ripperService.QueryAvailableDriveInformation())
+            foreach (var driveName in _rippingService.QueryAvailableDriveInformation())
             {
                 DiscDrives.Add(driveName.Value.Name);
             }
@@ -377,8 +377,8 @@ namespace CUERipper.Avalonia.ViewModels
             {
                 if (RipSession.HasRunningTask)
                 {
-                    var drives = _ripperService.QueryAvailableDriveInformation().Select(d => d.Key);
-                    if (drives.Contains(_ripperService.SelectedDrive)) return;
+                    var drives = _rippingService.QueryAvailableDriveInformation().Select(d => d.Key);
+                    if (drives.Contains(_rippingService.SelectedDrive)) return;
                     if (!RipSession.IsUsingDrive) return;
 
                     await RipSession.CancelAsync();
@@ -392,7 +392,7 @@ namespace CUERipper.Avalonia.ViewModels
         {
             _dispatcher.Post(async () =>
             {
-                if (driveLetter == _ripperService.SelectedDrive)
+                if (driveLetter == _rippingService.SelectedDrive)
                 {
                     if (RipSession.HasRunningTask)
                     {
@@ -416,7 +416,7 @@ namespace CUERipper.Avalonia.ViewModels
             _dispatcher.Post(async () =>
             {
                 if (RipSession.HasRunningTask && !RipSession.IsUsingDrive) return;
-                if (driveLetter == _ripperService.SelectedDrive) await RefreshSessionAsync();
+                if (driveLetter == _rippingService.SelectedDrive) await RefreshSessionAsync();
             });
         }
 

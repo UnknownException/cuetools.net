@@ -76,25 +76,25 @@ namespace CUERipper.Avalonia.ViewModels
         private CancellationTokenSource _rippingCts = new();
 
         private readonly ICUEConfigFacade _config;
-        private readonly ICUERipperService _ripperService;
-        private readonly ICUEImageService _imageService;
-        private readonly ICUEMetaService _metaService;
-        private readonly ICUEDialogService _dialogService;
+        private readonly IDiscRippingService _rippingService;
+        private readonly IDiscImageService _imageService;
+        private readonly IAlbumMetadataService _metaService;
+        private readonly IDialogService _dialogService;
         private readonly IUIDispatcher _dispatcher;
         private readonly IStringLocalizer _localizer;
         private readonly ILogger _logger;
 
         public RipSessionViewModel(ICUEConfigFacade config
-            , ICUERipperService ripperService
-            , ICUEImageService imageService
-            , ICUEMetaService metaService
-            , ICUEDialogService dialogService
+            , IDiscRippingService rippingService
+            , IDiscImageService imageService
+            , IAlbumMetadataService metaService
+            , IDialogService dialogService
             , IUIDispatcher dispatcher
             , IStringLocalizer<Language> localizer
             , ILogger<RipSessionViewModel> logger)
         {
             _config = config;
-            _ripperService = ripperService;
+            _rippingService = rippingService;
             _imageService = imageService;
             _metaService = metaService;
             _dialogService = dialogService;
@@ -102,8 +102,8 @@ namespace CUERipper.Avalonia.ViewModels
             _localizer = localizer;
             _logger = logger;
 
-            _ripperService.OnDirectoryConflict += DirectoryConflictCallback;
-            _ripperService.OnRippingProgress += RipperStatusCallback;
+            _rippingService.OnDirectoryConflict += DirectoryConflictCallback;
+            _rippingService.OnRippingProgress += RipperStatusCallback;
 
             _imageService.OnProgress += ImageProgressCallback;
             _imageService.OnRepairSelection += RepairSelectionCallback;
@@ -128,7 +128,7 @@ namespace CUERipper.Avalonia.ViewModels
 
             Mode = SessionState.Ripping;
 
-            _metaService.FinalizeMetadata();
+            _metaService.Save();
 
             if (!_rippingCts.TryReset())
             {
@@ -160,7 +160,7 @@ namespace CUERipper.Avalonia.ViewModels
             _isUsingDrive = true;
             try
             {
-                result = await _ripperService.RipAsync(settings, ct)
+                result = await _rippingService.RipAsync(settings, ct)
                     .ConfigureAwait(false);
             }
             finally
@@ -380,8 +380,8 @@ namespace CUERipper.Avalonia.ViewModels
 
             _rippingCts.Dispose();
 
-            _ripperService.OnDirectoryConflict -= DirectoryConflictCallback;
-            _ripperService.OnRippingProgress -= RipperStatusCallback;
+            _rippingService.OnDirectoryConflict -= DirectoryConflictCallback;
+            _rippingService.OnRippingProgress -= RipperStatusCallback;
 
             _imageService.OnProgress -= ImageProgressCallback;
             _imageService.OnRepairSelection -= RepairSelectionCallback;

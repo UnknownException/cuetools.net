@@ -67,11 +67,11 @@ namespace CUERipper.Avalonia.ViewModels
 
         private readonly CancellationTokenSource _downloadCts = new();
 
-        private readonly ICUEDialogService _dialogService;
+        private readonly IDialogService _dialogService;
         private readonly IUpdateService _updateService;
         private readonly IStringLocalizer _localizer;
 
-        public UpdateDialogViewModel(ICUEDialogService dialogService
+        public UpdateDialogViewModel(IDialogService dialogService
             , IUpdateService updateService
             , IStringLocalizer<Language> localizer)
         {

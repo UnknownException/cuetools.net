@@ -101,9 +101,9 @@ namespace CUERipper.Avalonia
             services.AddSingleton<ICDRipperFactory, CDRipperFactory>();
             services.AddSingleton<IRemoteMetadataLookup, RemoteMetadataLookup>();
             
-            services.AddSingleton<ICUERipperService, CUERipperService>();
-            services.AddSingleton<ICUEImageService, CUEImageService>();
-            services.AddSingleton<ICUEMetaService, CUEMetaService>();
+            services.AddSingleton<IDiscRippingService, DiscRippingService>();
+            services.AddSingleton<IDiscImageService, DiscImageService>();
+            services.AddSingleton<IAlbumMetadataService, AlbumMetadataService>();
 
             if (OS.IsWindows())
                 services.AddSingleton<IDriveNotificationService, WindowsDriveNotificationService>();
@@ -138,7 +138,7 @@ namespace CUERipper.Avalonia
 
             services.AddSingleton<IUIDispatcher, UIDispatcher>();
 
-            services.AddTransient<ICUEDialogService, CUEDialogService>();
+            services.AddTransient<IDialogService, DialogService>();
             services.AddSingleton<IIconService, IconService>();
 
             services.AddLogging(builder =>
@@ -192,7 +192,7 @@ namespace CUERipper.Avalonia
                 // Save unpersisted metadata changes
                 try
                 {
-                    serviceProvider.GetRequiredService<ICUEMetaService>().FinalizeMetadata();
+                    serviceProvider.GetRequiredService<IAlbumMetadataService>().Save();
                 }
                 catch (Exception ex)
                 {

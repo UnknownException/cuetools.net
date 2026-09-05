@@ -42,7 +42,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Services
 {
-    public class CUERipperService : ICUERipperService
+    public class DiscRippingService : IDiscRippingService
     {
         private Dictionary<char, DriveInformation> _driveList = [];
 
@@ -69,12 +69,12 @@ namespace CUERipper.Avalonia.Services
         private readonly IStringLocalizer _localizer;
         private readonly ILogger _logger;
 
-        public CUERipperService(ICUEConfigFacade config
+        public DiscRippingService(ICUEConfigFacade config
             , ICDRipperFactory ripperFactory
             , ICDDriveEnumerator driveEnumerator
             , ICUEMetadataStore metadataStore
             , IStringLocalizer<Language> stringLocalizer
-            , ILogger<CUERipperService> logger)
+            , ILogger<DiscRippingService> logger)
         {
             _config = config;
             _ripperFactory = ripperFactory;

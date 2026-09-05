@@ -28,7 +28,7 @@ namespace CUETools.Processor
     {
         #region Fields
 
-        public const string CUEToolsVersion = "2.2.6h";
+        public const string CUEToolsVersion = "2.2.6i";
 
         private bool _stop, _pause;
         private List<CUELine> _attributes;

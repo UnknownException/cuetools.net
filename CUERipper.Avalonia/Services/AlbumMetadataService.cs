@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 using Avalonia.Media.Imaging;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Events;
-using CUERipper.Avalonia.Exceptions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
 using CUERipper.Avalonia.Services.Abstractions;
@@ -32,7 +31,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Threading;
@@ -40,7 +38,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Services
 {
-    public class CUEMetaService : ICUEMetaService
+    public class AlbumMetadataService : IAlbumMetadataService
     {
         private readonly ICUEConfigFacade _cueConfig;
         private readonly ICUEMetadataStore _metadataStore;
@@ -66,12 +64,12 @@ namespace CUERipper.Avalonia.Services
         }
         public event EventHandler<SelectedMetadataChangedEventArgs>? OnSelectedMetadataChanged;
 
-        public CUEMetaService(ICUERipperService ripperService
+        public AlbumMetadataService(IDiscRippingService rippingService
             , ICUEConfigFacade cueConfig
             , ICUEMetadataStore metadataStore
             , IRemoteMetadataLookup remoteLookup
             , HttpClient httpClient
-            , ILogger<CUEMetaService> logger)
+            , ILogger<AlbumMetadataService> logger)
         {
             _cueConfig = cueConfig;
             _metadataStore = metadataStore;
@@ -79,9 +77,9 @@ namespace CUERipper.Avalonia.Services
             _httpClient = httpClient;
             _logger = logger;
 
-            ripperService.OnSelectedDriveChanged += (object? _, DriveChangedEventArgs e) =>
+            rippingService.OnSelectedDriveChanged += (object? _, DriveChangedEventArgs e) =>
             {
-                _toc = ripperService.GetDiscTOC() ?? new();
+                _toc = rippingService.GetDiscTOC() ?? new();
             };
         }
 
@@ -112,7 +110,7 @@ namespace CUERipper.Avalonia.Services
             return new CUEMetadataEntry(meta, toc, string.Empty);
         }
 
-        public IImmutableList<AlbumMetadata> GetAlbumMetaInformation(bool advancedSearch)
+        public IImmutableList<AlbumMetadata> Search(bool advancedSearch)
         {
             if (_toc.AudioTracks == 0) return [];
 
@@ -179,10 +177,10 @@ namespace CUERipper.Avalonia.Services
             return result;
         }
 
-        public void ResetAlbumMetaInformation()
+        public void Reset()
             => _cache.Remove(_toc.TOCID);
 
-        public IEnumerable<string> GetTracksLength()
+        public IEnumerable<string> GetTrackLengths()
         {
             if (_toc.AudioTracks == 0) return [];
 
@@ -250,7 +248,7 @@ namespace CUERipper.Avalonia.Services
             }
         }
 
-        public void FinalizeMetadata()
+        public void Save()
         {
             if (SelectedMetadata == null) return;
 

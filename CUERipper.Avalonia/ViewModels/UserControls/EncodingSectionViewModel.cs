@@ -110,10 +110,10 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         private string sectionHeader = string.Empty;
 
         private readonly ICUEConfigFacade _config;
-        private readonly ICUEDialogService _dialogService;
+        private readonly IDialogService _dialogService;
         private readonly IStringLocalizer _localizer;
         public EncodingSectionViewModel(ICUEConfigFacade config
-            , ICUEDialogService dialogService
+            , IDialogService dialogService
             , IIconService iconService
             , IStringLocalizer<Language> localizer)
         {

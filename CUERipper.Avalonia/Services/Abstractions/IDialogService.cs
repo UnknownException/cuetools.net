@@ -23,7 +23,7 @@ using System.Threading.Tasks;
 
 namespace CUERipper.Avalonia.Services.Abstractions
 {
-    public interface ICUEDialogService
+    public interface IDialogService
     {
         Task ShowOptionsAsync();
         Task ShowEncoderOptionsAsync(IAudioEncoderSettings encoderSettings);
