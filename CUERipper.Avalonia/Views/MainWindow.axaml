@@ -36,7 +36,7 @@
 			</Grid.ColumnDefinitions>
 		
 			<StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
-				<Image Name="imageAlbumCover" Source="{Binding CoverViewer.CurrentCover}" Width="96" Height="96" Stretch="Uniform" Margin="12"/>
+				<Image Name="imageAlbumCover" Source="{Binding CoverViewer.CurrentCover, Converter={StaticResource AvaloniaBitmap}}" Width="96" Height="96" Stretch="Uniform" Margin="12"/>
 				<StackPanel Orientation="Vertical" VerticalAlignment="Center" Margin="20,0,40,0">
 					<TextBlock Name="textAlbumTitle" Text="{Binding MetaGrid.AlbumTitle}"/>
 					<TextBlock Name="textAlbumArtist" Text="{Binding MetaGrid.AlbumArtist}"/>
@@ -63,7 +63,7 @@
 					<ComboBox.ItemTemplate>
 						<DataTemplate>
 							<StackPanel Orientation="Horizontal">
-								<Image Source="{Binding Icon}" Width="12" Height="12" Margin="0,0,5,0"/>
+								<Image Source="{Binding Icon, Converter={StaticResource AvaloniaBitmap}}" Width="12" Height="12" Margin="0,0,5,0"/>
 								<TextBlock Text="{Binding Name}"/>
 							</StackPanel>
 						</DataTemplate>
@@ -105,7 +105,7 @@
 						<ToolTip.Tip>
 							New update available for download!
 						</ToolTip.Tip>
-						<Image Source="{Binding IconUpdate}" Width="18" Height="18"/>
+						<Image Source="{Binding IconUpdate, Converter={StaticResource AvaloniaBitmap}}" Width="18" Height="18"/>
 					</Button>
 					<TextBlock Name="lblStatus" Text="{Binding RipSession.Status}" Margin="5" VerticalAlignment="Center"/>
 				</StackPanel>
@@ -175,7 +175,7 @@
 							<ToolTip.Tip>
 								Refreshes the list of disc drives and the content of the inserted disc.
 							</ToolTip.Tip>
-							<Image Source="{Binding IconRefreshDrives}" Width="18" Height="18"/>
+							<Image Source="{Binding IconRefreshDrives, Converter={StaticResource AvaloniaBitmap}}" Width="18" Height="18"/>
 						</Button>
 						<Button Name="buttonEject"
 								AutomationProperties.Name="Eject disc"
@@ -187,7 +187,7 @@
 							<ToolTip.Tip>
 								Yeets the disc out of the drive.
 							</ToolTip.Tip>
-							<Image Source="{Binding IconEject}" Width="18" Height="18"/>
+							<Image Source="{Binding IconEject, Converter={StaticResource AvaloniaBitmap}}" Width="18" Height="18"/>
 						</Button>
 						<ComboBox Name="comboBoxAlbumReleasesSidePane"
 								AutomationProperties.Name="Album releases"
@@ -201,7 +201,7 @@
 							<ComboBox.ItemTemplate>
 								<DataTemplate>
 									<StackPanel Orientation="Horizontal">
-										<Image Source="{Binding Icon}" Width="12" Height="12" Margin="0,0,5,0"/>
+										<Image Source="{Binding Icon, Converter={StaticResource AvaloniaBitmap}}" Width="12" Height="12" Margin="0,0,5,0"/>
 										<TextBlock Text="{Binding Name}"/>
 									</StackPanel>
 								</DataTemplate>
@@ -223,7 +223,7 @@
 							<ToolTip.Tip>
 								Advanced meta information search, takes longer than the default search.
 							</ToolTip.Tip>
-							<Image Source="{Binding IconAdvancedSearch}" Width="18" Height="18"/>
+							<Image Source="{Binding IconAdvancedSearch, Converter={StaticResource AvaloniaBitmap}}" Width="18" Height="18"/>
 						</Button>
 						<Button Name="buttonResetSearch"
 								AutomationProperties.Name="Reset album search"
@@ -235,7 +235,7 @@
 							<ToolTip.Tip>
 								Resets the release list to the initial search state.
 							</ToolTip.Tip>
-							<Image Source="{Binding IconResetSearch}" Width="18" Height="18"/>
+							<Image Source="{Binding IconResetSearch, Converter={StaticResource AvaloniaBitmap}}" Width="18" Height="18"/>
 						</Button>
 					</Grid>
 

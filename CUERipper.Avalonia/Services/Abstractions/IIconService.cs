@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Models.Abstractions;
 
 namespace CUERipper.Avalonia.Services.Abstractions
 {
@@ -42,7 +42,7 @@ namespace CUERipper.Avalonia.Services.Abstractions
 
     public interface IIconService
     {
-        Bitmap? GetIcon(AppIcon appIcon);
-        Bitmap? GetIcon(MetaSource metaSource);
+        IBitmap? GetIcon(AppIcon appIcon);
+        IBitmap? GetIcon(MetaSource metaSource);
     }
 }

@@ -1,4 +1,4 @@
-﻿#region Copyright (C) 2026 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
     Copyright (C) 2026 Max Visser
 
@@ -16,9 +16,19 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using CUERipper.Avalonia.Models.Abstractions;
+using Avalonia.Data.Converters;
+using CUERipper.Avalonia.Models;
+using System;
+using System.Globalization;
 
-namespace CUERipper.Avalonia.Models
+namespace CUERipper.Avalonia.Converters
 {
-    public record AlbumRelease(string Name, IBitmap? Icon, int Index);
+    public sealed class AvaloniaBitmapConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => (value as AvaloniaBitmap)?.Bitmap;
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
 }

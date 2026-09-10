@@ -30,7 +30,7 @@
 					IsEnabled="{Binding !MaximumReached}"
 					Margin="2"
 					Background="Transparent">
-				<Image Source="{Binding IconNew}" Width="18" Height="18"/>
+				<Image Source="{Binding IconNew, Converter={StaticResource AvaloniaBitmap}}" Width="18" Height="18"/>
 			</Button>
 			<Button Name="buttonCopy"
 					AutomationProperties.Name="Duplicate path format"
@@ -38,7 +38,7 @@
 					IsEnabled="{Binding !MaximumReached}"
 					Margin="2"
 					Background="Transparent">
-				<Image Source="{Binding IconCopy}" Width="18" Height="18"/>
+				<Image Source="{Binding IconCopy, Converter={StaticResource AvaloniaBitmap}}" Width="18" Height="18"/>
 			</Button>
 			<Button Name="buttonDelete"
 					AutomationProperties.Name="Remove path format"
@@ -46,7 +46,7 @@
 					IsEnabled="{Binding !ReadOnly}"
 					Margin="2"
 					Background="Transparent">
-				<Image Source="{Binding IconDelete}" Width="18" Height="18"/>
+				<Image Source="{Binding IconDelete, Converter={StaticResource AvaloniaBitmap}}" Width="18" Height="18"/>
 			</Button>
 		</StackPanel>
 

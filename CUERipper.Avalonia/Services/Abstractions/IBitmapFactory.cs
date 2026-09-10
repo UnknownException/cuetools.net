@@ -1,4 +1,4 @@
-﻿#region Copyright (C) 2026 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
     Copyright (C) 2026 Max Visser
 
@@ -17,8 +17,14 @@
 */
 #endregion
 using CUERipper.Avalonia.Models.Abstractions;
+using System.IO;
 
-namespace CUERipper.Avalonia.Models
+namespace CUERipper.Avalonia.Services.Abstractions
 {
-    public record AlbumRelease(string Name, IBitmap? Icon, int Index);
+    public interface IBitmapFactory
+    {
+        IBitmap? FromFile(string filePath);
+        IBitmap? FromStream(Stream stream);
+        IBitmap? FromAsset(string assetName);
+    }
 }

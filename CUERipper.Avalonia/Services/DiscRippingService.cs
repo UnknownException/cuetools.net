@@ -16,12 +16,12 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CUERipper.Avalonia.Compatibility;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Models.Abstractions;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUETools.AccurateRip;
 using CUETools.CDImage;
@@ -66,6 +66,7 @@ namespace CUERipper.Avalonia.Services
         private readonly ICDRipperFactory _ripperFactory;
         private readonly ICDDriveEnumerator _driveEnumerator;
         private readonly ICUEMetadataStore _metadataStore;
+        private readonly IBitmapFactory _bitmapFactory;
         private readonly IStringLocalizer _localizer;
         private readonly ILogger _logger;
 
@@ -73,6 +74,7 @@ namespace CUERipper.Avalonia.Services
             , ICDRipperFactory ripperFactory
             , ICDDriveEnumerator driveEnumerator
             , ICUEMetadataStore metadataStore
+            , IBitmapFactory bitmapFactory
             , IStringLocalizer<Language> stringLocalizer
             , ILogger<DiscRippingService> logger)
         {
@@ -80,6 +82,7 @@ namespace CUERipper.Avalonia.Services
             _ripperFactory = ripperFactory;
             _driveEnumerator = driveEnumerator;
             _metadataStore = metadataStore;
+            _bitmapFactory = bitmapFactory;
             _localizer = stringLocalizer;
             _logger = logger;
         }
@@ -490,9 +493,9 @@ namespace CUERipper.Avalonia.Services
                 using var albumCover = GetAlbumCoverFromCache(albumCoverUri);
                 if (albumCover != null)
                 {
-                    Bitmap? embeddedArtwork = null;
-                    if (albumCover.PixelSize.Width > _config.MaxAlbumArtSize
-                        || albumCover.PixelSize.Height > _config.MaxAlbumArtSize)
+                    IBitmap? embeddedArtwork = null;
+                    if (albumCover.Width > _config.MaxAlbumArtSize
+                        || albumCover.Height > _config.MaxAlbumArtSize)
                     {
                         embeddedArtwork = albumCover.ContainedResize(_config.MaxAlbumArtSize);
                     }
@@ -500,7 +503,7 @@ namespace CUERipper.Avalonia.Services
                     byte[] byteArray = [];
                     using (var stream = new MemoryStream())
                     {
-                        (embeddedArtwork ?? albumCover).Save(stream, quality: 95);
+                        (embeddedArtwork ?? albumCover).SaveJpeg(stream, Constants.JpegQuality);
                         byteArray = stream.ToArray();
                     }
 
@@ -524,14 +527,14 @@ namespace CUERipper.Avalonia.Services
             }
         }
 
-        private static Bitmap? GetAlbumCoverFromCache(string coverUri)
+        private IBitmap? GetAlbumCoverFromCache(string coverUri)
         {
             if (string.IsNullOrWhiteSpace(coverUri)) return null;
 
             using var md5 = MD5.Create();
             var fileIdentifier = md5.ComputeHashAsString(coverUri);
             var filePath = Path.Combine(Constants.PathImageCache, $"{fileIdentifier}{Constants.JpgExtension}");
-            return File.Exists(filePath) ? new Bitmap(filePath) : null;
+            return File.Exists(filePath) ? _bitmapFactory.FromFile(filePath) : null;
         }
 
         private static void CopyRawAlbumCoverFromCache(string coverUri, string destination)

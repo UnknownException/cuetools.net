@@ -22,7 +22,7 @@
 								<Setter Property="BorderBrush" Value="{Binding BorderColor}"/>
 							</Style>
 						</Border.Styles>
-						<Image Source="{Binding Bitmap150}" 
+						<Image Source="{Binding Bitmap150, Converter={StaticResource AvaloniaBitmap}}"
 								Width="150" 
 								Height="150" 
 								Stretch="UniformToFill"

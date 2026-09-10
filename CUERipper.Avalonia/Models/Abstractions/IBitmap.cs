@@ -1,4 +1,4 @@
-﻿#region Copyright (C) 2026 Max Visser
+#region Copyright (C) 2026 Max Visser
 /*
     Copyright (C) 2026 Max Visser
 
@@ -16,9 +16,19 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using CUERipper.Avalonia.Models.Abstractions;
+using System;
+using System.IO;
 
-namespace CUERipper.Avalonia.Models
+namespace CUERipper.Avalonia.Models.Abstractions
 {
-    public record AlbumRelease(string Name, IBitmap? Icon, int Index);
+    public interface IBitmap : IDisposable
+    {
+        int Width { get; }
+        int Height { get; }
+
+        IBitmap ContainedResize(int maxDimension);
+
+        void SaveJpeg(string filePath, int quality);
+        void SaveJpeg(Stream stream, int quality);
+    }
 }

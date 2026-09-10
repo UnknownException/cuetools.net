@@ -16,14 +16,13 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
-using CUERipper.Avalonia.Services;
+using CUERipper.Avalonia.Models.Abstractions;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.ViewModels.UserControls;
 using CUETools.Ripper;
@@ -95,11 +94,11 @@ namespace CUERipper.Avalonia.ViewModels
         public string HeaderTracks { get => _localizer["Main:Tracks"]; }
         public string HeaderMetadata { get => _localizer["Main:Metadata"]; }
 
-        public Bitmap? IconRefreshDrives { get; }
-        public Bitmap? IconAdvancedSearch { get; }
-        public Bitmap? IconResetSearch { get; }
-        public Bitmap? IconEject { get; }
-        public Bitmap? IconUpdate { get; }
+        public IBitmap? IconRefreshDrives { get; }
+        public IBitmap? IconAdvancedSearch { get; }
+        public IBitmap? IconResetSearch { get; }
+        public IBitmap? IconEject { get; }
+        public IBitmap? IconUpdate { get; }
 
         public DriveSettingSectionViewModel DriveSettings { get; }
         public EncodingTabContainerViewModel EncodingTabs { get; }

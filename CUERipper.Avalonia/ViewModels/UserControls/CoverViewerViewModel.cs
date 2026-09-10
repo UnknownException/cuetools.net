@@ -16,19 +16,17 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Models.Abstractions;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUERipper.Avalonia.Utilities;
 using CUETools.CTDB;
 using System;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,24 +38,25 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         public ObservableCollection<CoverViewAlbumViewModel> AlbumCovers { get; } = [];
 
         [ObservableProperty]
-        private Bitmap? currentCover;
+        private IBitmap? currentCover;
 
         [ObservableProperty]
         private bool isReadOnly;
 
-        private readonly Bitmap? _placeholderCover;
+        private readonly IBitmap? _placeholderCover;
 
         private readonly InterruptibleJob _thumbnailJob = new();
 
         private readonly IAlbumMetadataService _metaService;
         private readonly IUIDispatcher _dispatcher;
         public CoverViewerViewModel(IAlbumMetadataService metaService
+            , IBitmapFactory bitmapFactory
             , IUIDispatcher dispatcher)
         {
             _metaService = metaService;
             _dispatcher = dispatcher;
 
-            _placeholderCover = GetPlaceholderAlbumCover();
+            _placeholderCover = bitmapFactory.FromAsset("album-placeholder.bmp");
             CurrentCover = _placeholderCover;
 
             _metaService.OnSelectedMetadataChanged += OnSelectedMetadataChanged;
@@ -109,7 +108,7 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
                         await semaphore.WaitAsync(ct);
                         try
                         {
-                            var bitmap = await _metaService.FetchImageAsync(cover.Uri150, ct);
+                            var bitmap = await _metaService.FetchBitmapAsync(cover.Uri150, ct);
                             if (ct.IsCancellationRequested) return;
 
                             if (bitmap != null)
@@ -169,7 +168,7 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
 
             if (cover?.Uri == null) return string.Empty;
 
-            await _metaService.FetchImageAsync(cover.Uri, ct);
+            await _metaService.FetchBitmapAsync(cover.Uri, ct);
             return cover.Uri;
         }
 
@@ -203,20 +202,6 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             }
 
             AlbumCovers.Clear();
-        }
-
-        private static Bitmap? GetPlaceholderAlbumCover()
-        {
-            var uri = new Uri("avares://CUERipper.Avalonia/Assets/album-placeholder.bmp");
-            try
-            {
-                using var stream = AssetLoader.Open(uri);
-                return new Bitmap(stream);
-            }
-            catch (FileNotFoundException)
-            {
-                return null;
-            }
         }
 
         private bool _disposed = false;

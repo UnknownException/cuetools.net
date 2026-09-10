@@ -16,11 +16,11 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Models.Abstractions;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUETools.CDImage;
 using CUETools.CTDB;
@@ -43,6 +43,7 @@ namespace CUERipper.Avalonia.Services
         private readonly ICUEConfigFacade _cueConfig;
         private readonly ICUEMetadataStore _metadataStore;
         private readonly IRemoteMetadataLookup _remoteLookup;
+        private readonly IBitmapFactory _bitmapFactory;
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
 
@@ -68,12 +69,14 @@ namespace CUERipper.Avalonia.Services
             , ICUEConfigFacade cueConfig
             , ICUEMetadataStore metadataStore
             , IRemoteMetadataLookup remoteLookup
+            , IBitmapFactory bitmapFactory
             , HttpClient httpClient
             , ILogger<AlbumMetadataService> logger)
         {
             _cueConfig = cueConfig;
             _metadataStore = metadataStore;
             _remoteLookup = remoteLookup;
+            _bitmapFactory = bitmapFactory;
             _httpClient = httpClient;
             _logger = logger;
 
@@ -203,7 +206,7 @@ namespace CUERipper.Avalonia.Services
             return result;
         }
 
-        public async Task<Bitmap?> FetchImageAsync(string uri, CancellationToken ct)
+        public async Task<IBitmap?> FetchBitmapAsync(string uri, CancellationToken ct)
         {
             _logger.LogInformation("Fetching image from {Uri}.", uri);
 
@@ -217,7 +220,7 @@ namespace CUERipper.Avalonia.Services
             using var md5 = MD5.Create();
             var fileIdentifier = md5.ComputeHashAsString(uri);
             var filePath = Path.Combine(Constants.PathImageCache, $"{fileIdentifier}{Constants.JpgExtension}");
-            if (File.Exists(filePath)) return new Bitmap(filePath);
+            if (File.Exists(filePath)) return _bitmapFactory.FromFile(filePath);
 
             try
             {
@@ -230,11 +233,13 @@ namespace CUERipper.Avalonia.Services
                 using var stream = await response.Content.ReadAsStreamAsync(ct);
 #endif
 
-                var bitmapFromStream = new Bitmap(stream);
+                var bitmapFromStream = _bitmapFactory.FromStream(stream);
+                if (bitmapFromStream == null) return null;
+
                 var bitmap = bitmapFromStream.ContainedResize(Constants.HiResImageMaxDimension);
                 bitmapFromStream.Dispose();
 
-                bitmap.Save(filePath);
+                bitmap.SaveJpeg(filePath, Constants.JpegQuality);
                 return bitmap;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

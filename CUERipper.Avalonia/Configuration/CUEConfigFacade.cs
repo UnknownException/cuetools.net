@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Controls;
 using CUETools.Processor;
 using System.IO;
 using System;
@@ -115,33 +114,30 @@ namespace CUERipper.Avalonia.Configuration
             int pathFormatTemplateCount = 0;
             List<string> pathFormatTemplates = [];
 
-            if (!Design.IsDesignMode)
+            var settingsReader = new SettingsReader(Constants.ApplicationShortName, "settings.txt", Constants.ApplicationPath);
+            cueConfig.Load(settingsReader);
+
+            try
             {
-                var settingsReader = new SettingsReader(Constants.ApplicationShortName, "settings.txt", Constants.ApplicationPath);
-                cueConfig.Load(settingsReader);
+                outputCompression = (AudioEncoderType?)settingsReader.LoadInt32("OutputAudioType", null, null) ?? AudioEncoderType.Lossless;
+                cueStyleIndex = settingsReader.LoadInt32("ComboImage", int.MinValue, int.MaxValue);
+                secureModeIndex = settingsReader.LoadInt32("SecureMode", int.MinValue, int.MaxValue);
+                testAndCopyEnabled = settingsReader.LoadBoolean("TestAndCopy");
 
-                try
+                pathFormat = settingsReader.Load("PathFormat") ?? Constants.DefaultPathFormats[0];
+                pathFormatTemplateCount = settingsReader.LoadInt32("OutputPathUseTemplates", 0, Constants.MaxPathFormats) ?? 0;
+                for(int i = 0; i < pathFormatTemplateCount; ++i)
                 {
-                    outputCompression = (AudioEncoderType?)settingsReader.LoadInt32("OutputAudioType", null, null) ?? AudioEncoderType.Lossless;
-                    cueStyleIndex = settingsReader.LoadInt32("ComboImage", int.MinValue, int.MaxValue);
-                    secureModeIndex = settingsReader.LoadInt32("SecureMode", int.MinValue, int.MaxValue);
-                    testAndCopyEnabled = settingsReader.LoadBoolean("TestAndCopy");
-
-                    pathFormat = settingsReader.Load("PathFormat") ?? Constants.DefaultPathFormats[0];
-                    pathFormatTemplateCount = settingsReader.LoadInt32("OutputPathUseTemplates", 0, Constants.MaxPathFormats) ?? 0;
-                    for(int i = 0; i < pathFormatTemplateCount; ++i)
-                    {
-                        var template = settingsReader.Load($"OutputPathUseTemplate{i}") ?? string.Empty;
-                        pathFormatTemplates.Add(template);
-                    }
-
-                    using TextReader reader = new StringReader(settingsReader.Load("CUERipper"));
-                    if (CUERipperConfig.serializer.Deserialize(reader) is CUERipperConfig ripperConfig) cueRipperConfig = ripperConfig;
+                    var template = settingsReader.Load($"OutputPathUseTemplate{i}") ?? string.Empty;
+                    pathFormatTemplates.Add(template);
                 }
-                catch (Exception)
-                {
-                    // Do nothing...
-                }
+
+                using TextReader reader = new StringReader(settingsReader.Load("CUERipper"));
+                if (CUERipperConfig.serializer.Deserialize(reader) is CUERipperConfig ripperConfig) cueRipperConfig = ripperConfig;
+            }
+            catch (Exception)
+            {
+                // Do nothing...
             }
 
             var config = new CUEConfigFacade(cueConfig, cueRipperConfig);

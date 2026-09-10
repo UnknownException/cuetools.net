@@ -34,7 +34,7 @@
 				Command="{Binding OpenSettingsCommand}"
 				Background="Transparent"
 				ToolTip.Tip="{Binding ToolTipSettings}">
-			<Image Source="{Binding IconSettings}"
+			<Image Source="{Binding IconSettings, Converter={StaticResource AvaloniaBitmap}}"
 				   Width="18"
 				   Height="18"/>
 		</Button>
@@ -52,7 +52,7 @@
 				Command="{Binding OpenEncoderSettingsCommand}"
 				Background="Transparent"
 				ToolTip.Tip="{Binding ToolTipEncoderSettings}">
-			<Image Source="{Binding IconEncoderSettings}"
+			<Image Source="{Binding IconEncoderSettings, Converter={StaticResource AvaloniaBitmap}}"
 				   Width="18"
 				   Height="18"/>
 		</Button>

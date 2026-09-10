@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,12 +16,12 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Models.Abstractions;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUETools.Processor;
 using Microsoft.Extensions.Localization;
@@ -103,8 +103,8 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
         public string ToolTipSettings { get => _localizer["Encoding:ToolTipSettings"]; }
         public string ToolTipEncoderSettings { get => _localizer["Encoding:ToolTipEncoderSettings"]; }
 
-        public Bitmap? IconSettings { get; }
-        public Bitmap? IconEncoderSettings { get; }
+        public IBitmap? IconSettings { get; }
+        public IBitmap? IconEncoderSettings { get; }
 
         [ObservableProperty]
         private string sectionHeader = string.Empty;

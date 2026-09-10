@@ -16,11 +16,11 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Events;
+using CUERipper.Avalonia.Models.Abstractions;
 using CUERipper.Avalonia.Services.Abstractions;
 using CUETools.Ripper;
 using Microsoft.Extensions.Localization;
@@ -98,7 +98,7 @@ namespace CUERipper.Avalonia.ViewModels.UserControls
             }
         }
 
-        public Bitmap? IconResetDriveSettings { get; }
+        public IBitmap? IconResetDriveSettings { get; }
 
         public string TextTestAndCopy { get => _localizer["DriveSettings:TestAndCopy"]; }
         public string ToolTipResetDriveSettings { get => _localizer["DriveSettings:ToolTipReset"]; }

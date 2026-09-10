@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,11 +16,9 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Models.Abstractions;
 using CUERipper.Avalonia.Services.Abstractions;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 
@@ -30,9 +28,9 @@ namespace CUERipper.Avalonia.Services
     {
         private readonly Dictionary<AppIcon, string> _appIconPathMapping = new() {
             { AppIcon.Local, $"{Constants.PathNoto}emoji_u1f9e9.png" }
-            , { AppIcon.MusicBrainz, "avares://CUERipper.Avalonia/Assets/musicbrainz.ico" }
-            , { AppIcon.Freedb, "avares://CUERipper.Avalonia/Assets/freedb16.png" }
-            , { AppIcon.Discogs, "avares://CUERipper.Avalonia/Assets/discogs.png" }
+            , { AppIcon.MusicBrainz, "musicbrainz.ico" }
+            , { AppIcon.Freedb, "freedb16.png" }
+            , { AppIcon.Discogs, "discogs.png" }
             , { AppIcon.Disc, $"{Constants.PathNoto}emoji_u1f4bf.png" }
             , { AppIcon.Search, $"{Constants.PathNoto}emoji_u1f50d.png" }
             , { AppIcon.Eject, $"{Constants.PathNoto}emoji_u23cf.png" }
@@ -46,32 +44,21 @@ namespace CUERipper.Avalonia.Services
             , { AppIcon.New, $"{Constants.PathNoto}emoji_u1f195.png" }
         };
 
-        private readonly Dictionary<AppIcon, Bitmap?> _appIconBitmap = [];
+        private readonly Dictionary<AppIcon, IBitmap?> _appIconBitmap = [];
 
-        private readonly ILogger _logger;
-        public IconService(ILogger<IconService> logger) 
+        public IconService(IBitmapFactory bitmapFactory)
         {
-            _logger = logger;
-
             // Read images
             foreach (var item in _appIconPathMapping)
             {
-                try
-                {
-                    using var stream = AssetLoader.Open(new Uri(item.Value));
-                    _appIconBitmap.Add(item.Key, new Bitmap(stream));
-                }
-                catch(Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to retrieve icon {path}.", item.Value);
-                }
+                _appIconBitmap.Add(item.Key, bitmapFactory.FromAsset(item.Value));
             }
         }
 
-        public Bitmap? GetIcon(AppIcon appIcon)
-            => _appIconBitmap.TryGetValue(appIcon, out Bitmap? result) ? result : null;
+        public IBitmap? GetIcon(AppIcon appIcon)
+            => _appIconBitmap.TryGetValue(appIcon, out IBitmap? result) ? result : null;
 
-        public Bitmap? GetIcon(MetaSource metaSource)
+        public IBitmap? GetIcon(MetaSource metaSource)
             => metaSource switch {
                 MetaSource.Local => GetIcon(AppIcon.Local),
                 MetaSource.MusicBrainz => GetIcon(AppIcon.MusicBrainz),

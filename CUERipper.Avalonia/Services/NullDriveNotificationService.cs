@@ -1,6 +1,6 @@
-﻿#region Copyright (C) 2025 Max Visser
+﻿#region Copyright (C) 2026 Max Visser
 /*
-    Copyright (C) 2025 Max Visser
+    Copyright (C) 2026 Max Visser
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
+using CUERipper.Avalonia.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;

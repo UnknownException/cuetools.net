@@ -16,9 +16,9 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CUERipper.Avalonia.Events;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Models.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -41,7 +41,7 @@ namespace CUERipper.Avalonia.Services.Abstractions
 
         IEnumerable<string> GetTrackLengths();
 
-        Task<Bitmap?> FetchImageAsync(string uri, CancellationToken ct);
+        Task<IBitmap?> FetchBitmapAsync(string uri, CancellationToken ct);
         void Save();
     }
 }

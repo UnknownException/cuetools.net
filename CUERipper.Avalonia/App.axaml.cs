@@ -139,6 +139,7 @@ namespace CUERipper.Avalonia
             services.AddSingleton<IUIDispatcher, UIDispatcher>();
 
             services.AddTransient<IDialogService, DialogService>();
+            services.AddSingleton<IBitmapFactory, AvaloniaBitmapFactory>();
             services.AddSingleton<IIconService, IconService>();
 
             services.AddLogging(builder =>

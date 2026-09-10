@@ -16,12 +16,12 @@
     with this program; if not, see <https://www.gnu.org/licenses/>.
 */
 #endregion
-using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CUERipper.Avalonia.Configuration.Abstractions;
 using CUERipper.Avalonia.Extensions;
 using CUERipper.Avalonia.Models;
+using CUERipper.Avalonia.Models.Abstractions;
 using CUERipper.Avalonia.Services.Abstractions;
 using Microsoft.Extensions.Localization;
 using System.Collections.ObjectModel;
@@ -83,9 +83,9 @@ namespace CUERipper.Avalonia.ViewModels
 
         private AlbumMetadata? _meta;
 
-        public Bitmap? IconNew { get; }
-        public Bitmap? IconCopy { get; }
-        public Bitmap? IconDelete { get; }
+        public IBitmap? IconNew { get; }
+        public IBitmap? IconCopy { get; }
+        public IBitmap? IconDelete { get; }
 
         private readonly ICUEConfigFacade _config;
         private readonly IStringLocalizer _localizer;

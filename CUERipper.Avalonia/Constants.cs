@@ -52,9 +52,10 @@ namespace CUERipper.Avalonia
         public const string ApplicationShortName = "CUERipper";
         public const string ApplicationName = $"{ApplicationShortName}.Avalonia {CUESheet.CUEToolsVersion}";
 
-        public const string PathNoto = "avares://CUERipper.Avalonia/Assets/noto-emoji/32/";
+        public const string PathNoto = "noto-emoji/32/";
 
         public const int HiResImageMaxDimension = 2048;
+        public const int JpegQuality = 95;
 
         public const string UserAgent = $"{ApplicationShortName}/{CUESheet.CUEToolsVersion} ( https://github.com/gchudov/cuetools.net )";
         public const string GithubApiUri = "https://api.github.com/repos/UnknownException/cuetools.net/releases";
